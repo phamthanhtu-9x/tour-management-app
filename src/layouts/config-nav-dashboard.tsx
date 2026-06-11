@@ -47,6 +47,10 @@ export const navData = [
    */
   {
     subheader: 'Management',
-    items: [{ title: 'Tournaments', path: paths.dashboard.root, icon: ICONS.dashboard }],
+    items: [
+      { title: 'Tournaments', path: paths.dashboard.root, icon: ICONS.dashboard },
+      { title: 'Player', path: paths.dashboard.player, icon: ICONS.user },
+      { title: 'Default blind', path: paths.dashboard.defaultBlind, icon: ICONS.label },
+    ],
   },
 ];
