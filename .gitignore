@@ -19,3 +19,4 @@ uploads/*
 !uploads/.gitkeep
 node_modules
 node_modules
+swagger.json
