@@ -115,7 +115,13 @@ export type UpdatePlayerDto = {
 
 // ---------------------------------- Upload ----------------------------------
 
-export type UploadResponse = {
-  url?: string;
+export type UploadFileData = {
+  filename?: string;
+  originalName?: string;
+  mimetype?: string;
+  size?: number;
+  path?: string;
   [key: string]: unknown;
 };
+
+export type UploadResponse = ApiResponse<UploadFileData>;
