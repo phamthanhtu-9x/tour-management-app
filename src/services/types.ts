@@ -7,6 +7,13 @@ export type PaginationParams = {
   limit?: number;
 };
 
+/** Envelope chuẩn mà backend trả về cho mọi response */
+export type ApiResponse<T> = {
+  statusCode: number;
+  message: string;
+  data: T;
+};
+
 // ---------------------------------- Auth ----------------------------------
 
 export type AuthDTO = {
@@ -14,8 +21,9 @@ export type AuthDTO = {
   password: string;
 };
 
-export type AuthResponse = {
-  accessToken: string;
+/** data của response /auth/login và /auth/register */
+export type LoginResponseData = {
+  access_token: string;
 };
 
 // ---------------------------------- User ----------------------------------
@@ -25,6 +33,20 @@ export type UpdateUserDto = {
   avatar?: string;
   firstName?: string;
   lastName?: string;
+};
+
+/** Thông tin user trả về từ /users/me */
+export type UserProfile = {
+  id?: number;
+  email?: string;
+  displayName?: string;
+  avatar?: string | null;
+  firstName?: string;
+  lastName?: string;
+  role?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  [key: string]: unknown;
 };
 
 // ---------------------------------- Tour ----------------------------------
