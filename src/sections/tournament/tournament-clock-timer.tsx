@@ -21,7 +21,7 @@ export function TournamentClockTimer() {
         flexDirection: 'column',
         alignItems: 'center',
         textAlign: 'center',
-        pt: '2cqw',
+        pt: '1cqw',
       }}
     >
       <Stack spacing="1cqw" alignItems="center">
@@ -31,7 +31,7 @@ export function TournamentClockTimer() {
         </Typography>
 
         {/* Timer */}
-        <Typography sx={{ fontWeight: 700, lineHeight: 0.9, fontSize: '22cqw' }}>
+        <Typography sx={{ fontWeight: 700, lineHeight: 0.9, fontSize: '22cqw', mb: '1cqw' }}>
           {clock.time}
         </Typography>
 
