@@ -80,6 +80,8 @@ export type TourLevelItemDto = {
 
 export type InsertTourDto = {
   title?: string;
+  desc?: string;
+  startingStack?: number;
 };
 
 export type UpdateTourDto = {

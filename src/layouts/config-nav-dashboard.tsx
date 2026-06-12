@@ -37,6 +37,7 @@ const ICONS = {
   analytics: icon('ic-analytics'),
   dashboard: icon('ic-dashboard'),
   parameter: icon('ic-parameter'),
+  tournament: icon('ic-tour'),
 };
 
 // ----------------------------------------------------------------------
@@ -48,7 +49,8 @@ export const navData = [
   {
     subheader: 'Management',
     items: [
-      { title: 'Tournaments', path: paths.dashboard.root, icon: ICONS.dashboard },
+      { title: 'Dashboard', path: paths.dashboard.root, icon: ICONS.dashboard },
+      { title: 'Tournament', path: paths.dashboard.tournament.root, icon: ICONS.tournament },
       { title: 'Player', path: paths.dashboard.player, icon: ICONS.user },
       { title: 'Default blind', path: paths.dashboard.defaultBlind, icon: ICONS.label },
     ],
