@@ -17,6 +17,7 @@ import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import LoadingButton from '@mui/lab/LoadingButton';
 import TableContainer from '@mui/material/TableContainer';
+import TextField from '@mui/material/TextField';
 import InputAdornment from '@mui/material/InputAdornment';
 
 import { toast } from 'src/components/snackbar';
@@ -179,22 +180,16 @@ function LevelsEditor() {
 
   return (
     <Stack spacing={2}>
-      <Stack direction="row" spacing={1} alignItems="center">
-        <Typography variant="h6" sx={{ flexGrow: 1 }}>
-          Levels
-        </Typography>
-      </Stack>
-
       <TableContainer sx={{ border: (theme) => `1px solid ${theme.vars.palette.divider}`, borderRadius: 1 }}>
-        <Table size="small" sx={{minWidth: '700px'}}>
+        <Table size="medium" sx={{ minWidth: 520, tableLayout: 'auto' }}>
           <TableHead>
             <TableRow>
-              <TableCell>Level</TableCell>
-              <TableCell>Small blind</TableCell>
-              <TableCell>Big blind</TableCell>
-              <TableCell>Ante</TableCell>
-              <TableCell>Duration</TableCell>
-              <TableCell align="center">Action</TableCell>
+              <TableCell sx={{ minWidth: 80, width: '10%' }}>Level</TableCell>
+              <TableCell sx={{ width: '60%' }}>Small/Big/Ante</TableCell>
+              <TableCell sx={{ minWidth: 116, width: '15%' }}>Duration</TableCell>
+              <TableCell sx={{ minWidth: 80, width: '15%' }} align="center">
+                Action
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -206,19 +201,32 @@ function LevelsEditor() {
                 if (!isBreak) blindCount += 1;
                 const blindLabel = `Level ${blindCount}`;
 
-                // Dòng BREAK: hiển thị label "Break" + input Name full hàng + xoá
+                // Dòng BREAK: hiển thị label "Break" + input Name + Duration + xoá
                 if (isBreak) {
                   return (
                     <TableRow key={field.id}>
                       <TableCell sx={{ fontWeight: 600, whiteSpace: 'nowrap' }}>
                         Break
                       </TableCell>
-                      <TableCell colSpan={4}>
+                      <TableCell>
                         <Field.Text
                           name={`levels.${index}.name`}
                           size="small"
                           label="Name"
                           InputLabelProps={{ shrink: true }}
+                          sx={{ width: '100%' }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Field.Text
+                          name={`levels.${index}.duration`}
+                          size="small"
+                          type="number"
+                          InputLabelProps={{ shrink: true }}
+                          InputProps={{
+                            endAdornment: <InputAdornment position="end">min</InputAdornment>,
+                          }}
+                          sx={{ width: '100%' }}
                         />
                       </TableCell>
                       <TableCell align="center">
@@ -237,26 +245,19 @@ function LevelsEditor() {
                       {blindLabel}
                     </TableCell>
                     <TableCell>
-                      <Field.Text
-                        name={`levels.${index}.smallBlind`}
+                      <TextField
+                        fullWidth
                         size="small"
-                        type="number"
-                        InputLabelProps={{ shrink: true }}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Field.Text
-                        name={`levels.${index}.bigBlind`}
-                        size="small"
-                        type="number"
-                        InputLabelProps={{ shrink: true }}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Field.Text
-                        name={`levels.${index}.ante`}
-                        size="small"
-                        type="number"
+                        value={`${watchedLevels?.[index]?.smallBlind ?? ''}/${watchedLevels?.[index]?.bigBlind ?? ''}/${watchedLevels?.[index]?.ante ?? ''}`}
+                        onChange={(e) => {
+                          const parts = e.target.value.split('/');
+                          if (parts.length >= 3) {
+                            setValue(`levels.${index}.smallBlind`, Number(parts[0]) || 0, { shouldDirty: true });
+                            setValue(`levels.${index}.bigBlind`, Number(parts[1]) || 0, { shouldDirty: true });
+                            setValue(`levels.${index}.ante`, Number(parts[2]) || 0, { shouldDirty: true });
+                          }
+                        }}
+                        placeholder="SB/BB/Ante"
                         InputLabelProps={{ shrink: true }}
                       />
                     </TableCell>
@@ -269,6 +270,7 @@ function LevelsEditor() {
                         InputProps={{
                           endAdornment: <InputAdornment position="end">min</InputAdornment>,
                         }}
+                        sx={{ width: '100%' }}
                       />
                     </TableCell>
                     <TableCell align="center">

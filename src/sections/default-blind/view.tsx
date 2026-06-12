@@ -30,9 +30,7 @@ export function DefaultBlindView() {
           <CircularProgress />
         </Box>
       ) : (
-        <Card sx={{ p: 3 }}>
-          <DefaultBlindEditForm currentLevels={levels} onSaved={() => levelsMutate()} />
-        </Card>
+        <DefaultBlindEditForm currentLevels={levels} onSaved={() => levelsMutate()} />
       )}
     </DashboardContent>
   );
