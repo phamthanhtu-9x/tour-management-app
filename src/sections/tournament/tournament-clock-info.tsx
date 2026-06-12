@@ -25,8 +25,8 @@ export function TournamentClockInfo({ tournament: _tournament }: Props) {
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        justifyContent: 'space-between',
         textAlign: 'center',
+        gap: '2.5cqw',
         py: '3cqw',
       }}
     >

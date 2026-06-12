@@ -58,7 +58,7 @@ export function TournamentClockLayout({ topCenter, topRight, left, center, right
           display: 'flex',
           alignItems: 'center',
           px: 3,
-          paddingTop: 1,
+          paddingTop: '1cqw',
         }}
       >
         <Box sx={{ width: `${topSideWidth}%` }} />

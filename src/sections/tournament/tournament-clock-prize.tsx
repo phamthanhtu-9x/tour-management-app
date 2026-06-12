@@ -10,9 +10,15 @@ import TableRow from '@mui/material/TableRow';
 
 const prizes = [
   { label: 'GTD', value: '10' },
-  { label: 'I', value: '4' },
-  { label: 'II', value: '2' },
+  { label: 'I', value: '1' },
+  { label: 'II', value: '1' },
   { label: 'III', value: '1' },
+  { label: 'IV', value: '1' },
+  { label: 'V', value: '1' },
+  { label: 'VI', value: '1' },
+  { label: 'VII', value: '1' },
+  { label: 'VIII', value: '1' },
+  { label: 'IX', value: '1' },
 ];
 
 export function TournamentClockPrize() {
@@ -34,7 +40,7 @@ export function TournamentClockPrize() {
                 <TableCell
                   sx={{
                     borderBottom: 'none',
-                    py: index === 0 ? 0.75 : 0.5,
+                    py: 1,
                     textAlign: 'center',
                   }}
                 >
