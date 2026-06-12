@@ -14,6 +14,21 @@ export type ApiResponse<T> = {
   data: T;
 };
 
+/** Meta phân trang trong response pagination */
+export type PaginationMeta = {
+  totalItems: number;
+  itemCount: number;
+  itemsPerPage: number;
+  totalPages: number;
+  currentPage: number;
+};
+
+/** Response có phân trang: data chứa items + meta */
+export type PaginatedData<T> = {
+  items: T[];
+  meta: PaginationMeta;
+};
+
 // ---------------------------------- Auth ----------------------------------
 
 export type AuthDTO = {

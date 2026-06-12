@@ -1,5 +1,7 @@
 export * from './types';
 
+export * from './response-helper';
+
 export * from './api-client';
 
 export * from './auth.service';

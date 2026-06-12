@@ -4,7 +4,7 @@ import type { PaginationParams } from 'src/services/types';
 import useSWR from 'swr';
 import { useMemo } from 'react';
 
-import { playerService } from 'src/services';
+import { playerService, extractData, extractItems, extractMeta } from 'src/services';
 
 // ----------------------------------------------------------------------
 
@@ -13,32 +13,6 @@ const swrOptions = {
   revalidateOnFocus: false,
   revalidateOnReconnect: false,
 };
-
-// ----------------------------------------------------------------------
-
-/** Bóc danh sách players từ envelope ApiResponse hoặc mảng trực tiếp. */
-function extractPlayers(res: any): IPlayerItem[] {
-  const data = res?.data ?? res;
-
-  if (Array.isArray(data)) return data;
-  if (Array.isArray(data?.players)) return data.players;
-  if (Array.isArray(data?.results)) return data.results;
-  if (Array.isArray(data?.items)) return data.items;
-
-  return [];
-}
-
-/** Trả về tổng số bản ghi từ envelope phân trang (`data.meta.totalItems`). */
-function extractTotal(res: any): number {
-  const data = res?.data ?? res;
-
-  return (
-    data?.meta?.totalItems ??
-    data?.total ??
-    (Array.isArray(data?.items) ? data.items.length : undefined) ??
-    (Array.isArray(data) ? data.length : 0)
-  );
-}
 
 // ----------------------------------------------------------------------
 
@@ -53,12 +27,13 @@ export function useGetPlayers(params?: PaginationParams) {
   );
 
   const memoizedValue = useMemo(() => {
-    const players = extractPlayers(data);
-    const total = extractTotal(data);
+    const players = extractItems<IPlayerItem>(data);
+    const meta = extractMeta(data);
 
     return {
       players,
-      playersTotal: total,
+      playersTotal: meta?.totalItems ?? 0,
+      playersMeta: meta,
       playersLoading: isLoading,
       playersError: error,
       playersValidating: isValidating,
@@ -81,10 +56,10 @@ export function useGetPlayer(id: number | undefined) {
   );
 
   const memoizedValue = useMemo(() => {
-    const player = data?.data ?? data ?? null;
+    const player = extractData<IPlayerItem>(data);
 
     return {
-      player: player as IPlayerItem | null,
+      player,
       playerLoading: isLoading,
       playerError: error,
       playerValidating: isValidating,
