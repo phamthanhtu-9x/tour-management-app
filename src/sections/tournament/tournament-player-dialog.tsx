@@ -19,6 +19,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 
 import { useGetPlayers } from 'src/actions/player';
 import { getFileUrl } from 'src/utils/file-url';
+import { Scrollbar } from 'src/components/scrollbar';
 
 // ----------------------------------------------------------------------
 
@@ -34,10 +35,10 @@ type Props = {
 export function TournamentPlayerDialog({ open, onClose, currentEntries, onSave }: Props) {
   const [page, setPage] = useState(1);
 
-  const { players, playersTotal, playersLoading } = useGetPlayers({
-    page,
-    limit: 10,
-  });
+  // Only fetch when dialog is open
+  const { players, playersTotal, playersLoading } = useGetPlayers(
+    open ? { page, limit: 10 } : null
+  );
 
   // ---- Accumulate players across pages -----------------------------------
 
@@ -156,7 +157,8 @@ export function TournamentPlayerDialog({ open, onClose, currentEntries, onSave }
     <Dialog fullWidth maxWidth="xs" open={open} onClose={onClose}>
       <DialogTitle>Update Players</DialogTitle>
 
-      <DialogContent dividers sx={{ p: 0, maxHeight: 400, overflowY: 'auto' }}>
+      <DialogContent dividers sx={{px: 0, py: 2}}>
+        <Scrollbar sx={{ maxHeight: 400, overflowY: 'auto' }}>
         {isFirstPageLoading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
             <CircularProgress size={28} />
@@ -218,6 +220,7 @@ export function TournamentPlayerDialog({ open, onClose, currentEntries, onSave }
             )}
           </Box>
         )}
+        </Scrollbar>
       </DialogContent>
 
       <DialogActions>

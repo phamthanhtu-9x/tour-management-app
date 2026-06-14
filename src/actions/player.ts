@@ -16,13 +16,13 @@ const swrOptions = {
 
 // ----------------------------------------------------------------------
 
-/** Danh sách người chơi (có phân trang). */
-export function useGetPlayers(params?: PaginationParams) {
-  const key: any = params ? ['players', params] : 'players';
+/** Danh sách người chơi (có phân trang). Truyền null để skip fetch. */
+export function useGetPlayers(params?: PaginationParams | null) {
+  const key: any = params ? ['players', params] : null;
 
   const { data, isLoading, error, isValidating, mutate } = useSWR(
     key,
-    () => playerService.getPlayers(params),
+    () => playerService.getPlayers(params!),
     swrOptions
   );
 
