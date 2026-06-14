@@ -66,6 +66,17 @@ export type UserProfile = {
 
 // ---------------------------------- Tour ----------------------------------
 
+export type TourControlEntry = {
+  name?: string;
+  avatar?: string;
+  isEliminated?: boolean;
+};
+
+export type TourControlData = {
+  entries?: TourControlEntry[];
+  [key: string]: unknown;
+};
+
 export type TourLevelType = 'BLIND' | 'BREAK';
 
 export type TourLevelItemDto = {
@@ -100,7 +111,7 @@ export type SetLevelDto = {
 };
 
 /** Body cho cập nhật danh sách entries (người chơi) của control */
-export type UpdateEntriesDto = string[];
+export type UpdateEntriesDto = TourControlEntry[];
 
 // ---------------------------------- Setup ----------------------------------
 

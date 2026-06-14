@@ -11,7 +11,7 @@ type Props = {
 
 export function TournamentClockInfo({ tournament: _tournament }: Props) {
   const rows = [
-    { label: 'Entries', value: '18/40' },
+    { label: 'Entries', value: '18 / 40' },
     { label: 'Re-buy / Buy-in', value: '10 / 20' },
     { label: 'Chips in play', value: '40,000' },
     { label: 'Average Stack', value: '30,000' },

@@ -1,5 +1,5 @@
 import type { ITournamentItem } from 'src/types/tournament';
-import type { PaginationParams } from 'src/services/types';
+import type { PaginationParams, TourControlData } from 'src/services/types';
 
 import useSWR from 'swr';
 import { useMemo } from 'react';
@@ -64,6 +64,31 @@ export function useGetTournament(id: number | undefined) {
       tournamentError: error,
       tournamentValidating: isValidating,
       tournamentMutate: mutate,
+    };
+  }, [data, error, isLoading, isValidating, mutate]);
+
+  return memoizedValue;
+}
+
+// ----------------------------------------------------------------------
+
+/** Control data của một tournament (entries, clock state...). Chỉ fetch khi có id. */
+export function useGetTourControl(id: number | undefined) {
+  const { data, isLoading, error, isValidating, mutate } = useSWR(
+    id ? ['tournament-control', id] : null,
+    () => tourService.getTourControl(id!),
+    swrOptions
+  );
+
+  const memoizedValue = useMemo(() => {
+    const control = extractData<TourControlData>(data);
+
+    return {
+      control,
+      controlLoading: isLoading,
+      controlError: error,
+      controlValidating: isValidating,
+      controlMutate: mutate,
     };
   }, [data, error, isLoading, isValidating, mutate]);
 
