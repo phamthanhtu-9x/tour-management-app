@@ -18,6 +18,8 @@ import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { EmptyContent } from 'src/components/empty-content';
 
+import { TournamentControlPanel } from './tournament-control-panel';
+
 // ----------------------------------------------------------------------
 
 type Props = {
@@ -31,7 +33,7 @@ type Props = {
 
 export function TournamentDetailsControl({ id, tournament, tournamentMutate, tournamentLoading }: Props) {
   const { levels, levelsLoading } = useGetTourLevels(id);
-  const { control } = useGetTourControl(id);
+  const { control, controlMutate } = useGetTourControl(id);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [gtd, setGtd] = useState('');
@@ -105,7 +107,9 @@ export function TournamentDetailsControl({ id, tournament, tournamentMutate, tou
   }
 
   return (
-    <Box>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <TournamentControlPanel id={id} levels={levels} controlMutate={controlMutate} />
+
       <Card sx={{ p: 3 }}>
         {levelsLoading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
