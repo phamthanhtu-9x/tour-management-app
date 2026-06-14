@@ -109,7 +109,6 @@ export function TournamentDetailsPlayer({ id }: Props) {
             <Table size="small" sx={{ minWidth: 480 }}>
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ width: 60 }}>#</TableCell>
                   <TableCell sx={{ width: 56 }} />
                   <TableCell>Player Name</TableCell>
                   <TableCell align="right" sx={{ width: 120 }}>
@@ -120,9 +119,7 @@ export function TournamentDetailsPlayer({ id }: Props) {
 
               <TableBody>
                 {entries.map((entry, index) => (
-                  <TableRow key={`${entry.name}-${index}`} hover>
-                    <TableCell sx={{ color: 'text.secondary' }}>{index + 1}</TableCell>
-
+                  <TableRow key={`${entry.name}-${index}`} hover sx={{opacity: entry.isEliminated ? 0.5: 1 }}>
                     <TableCell sx={{ py: 0.75 }}>
                       <Avatar
                         alt={entry.name || '—'}
