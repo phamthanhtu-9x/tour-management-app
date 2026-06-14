@@ -75,6 +75,12 @@ export type TourControlEntry = {
 
 export type TourControlData = {
   entries?: TourControlEntry[];
+  /** Idx của level đang chạy hiện tại */
+  currentLevel?: number;
+  /** Clock có đang chạy hay không (true = running, false = paused/chưa start) */
+  isRunning?: boolean;
+  /** Chuỗi GTD (giải thưởng) dạng "10/5/3/3/1" */
+  gtd?: string;
   [key: string]: unknown;
 };
 

@@ -19,6 +19,7 @@ import { Iconify } from 'src/components/iconify';
 import { EmptyContent } from 'src/components/empty-content';
 
 import { TournamentControlPanel } from './tournament-control-panel';
+import { TournamentTourTimer } from './tournament-tour-timer';
 
 // ----------------------------------------------------------------------
 
@@ -108,7 +109,19 @@ export function TournamentDetailsControl({ id, tournament, tournamentMutate, tou
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-      <TournamentControlPanel id={id} levels={levels} controlMutate={controlMutate} />
+      <TournamentTourTimer
+        tournament={tournament}
+        control={control}
+        levels={levels}
+        levelsLoading={levelsLoading}
+      />
+
+      <TournamentControlPanel
+        id={id}
+        levels={levels}
+        isRunning={control?.isRunning ?? false}
+        controlMutate={controlMutate}
+      />
 
       <Card sx={{ p: 3 }}>
         {levelsLoading ? (

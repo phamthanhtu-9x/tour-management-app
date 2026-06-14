@@ -1,7 +1,11 @@
 'use client';
 
+import { useEffect, useMemo } from 'react';
+
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
+import { useTheme } from '@mui/material/styles';
+import useMediaQuery from '@mui/material/useMediaQuery';
 
 import { paths } from 'src/routes/paths';
 
@@ -34,13 +38,28 @@ type Props = {
 };
 
 export function TournamentDetailsView({ id }: Props) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+
   const tabs = useTabs('clock');
 
   const { tournament, tournamentLoading, tournamentMutate } = useGetTournament(id);
 
+  // ---- On mobile: hide Clock tab, auto-switch to Control ----
+  useEffect(() => {
+    if (isMobile && tabs.value === 'clock') {
+      tabs.setValue('control');
+    }
+  }, [isMobile, tabs]);
+
+  const visibleTabs = useMemo(
+    () => (isMobile ? TOURNAMENT_DETAILS_TABS.filter((t) => t.value !== 'clock') : TOURNAMENT_DETAILS_TABS),
+    [isMobile]
+  );
+
   const renderTabs = (
     <Tabs value={tabs.value} onChange={tabs.onChange} sx={{ mb: { xs: 3, md: 5 } }}>
-      {TOURNAMENT_DETAILS_TABS.map((tab) => (
+      {visibleTabs.map((tab) => (
         <Tab key={tab.value} value={tab.value} label={tab.label} />
       ))}
     </Tabs>
@@ -60,7 +79,7 @@ export function TournamentDetailsView({ id }: Props) {
 
       {renderTabs}
 
-      {tabs.value === 'clock' && (
+      {!isMobile && tabs.value === 'clock' && (
         <TournamentDetailsClock tournament={tournament} loading={tournamentLoading} />
       )}
 

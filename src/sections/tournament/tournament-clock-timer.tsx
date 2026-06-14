@@ -4,15 +4,33 @@ import Typography from '@mui/material/Typography';
 
 // ----------------------------------------------------------------------
 
-const clock = {
-  level: 10,
-  time: '10:00',
-  blinds: '4000/8000/8000',
-  nextLevel: 11,
-  nextBlinds: '4000/8000/8000',
+export type ClockTimerData = {
+  level: number | string;
+  time: string;
+  blinds: string;
+  nextLevel: number | string;
+  nextBlinds: string;
+  /** Hiện tại đang là level BREAK */
+  isBreak?: boolean;
+  /** Level kế tiếp là BREAK */
+  isNextBreak?: boolean;
 };
 
-export function TournamentClockTimer() {
+type Props = {
+  data?: ClockTimerData;
+};
+
+const fallback: ClockTimerData = {
+  level: '—',
+  time: '—:—',
+  blinds: '—',
+  nextLevel: '—',
+  nextBlinds: '—',
+};
+
+export function TournamentClockTimer({ data }: Props) {
+  const clock = data ?? fallback;
+
   return (
     <Box
       sx={{
@@ -27,7 +45,7 @@ export function TournamentClockTimer() {
       <Stack spacing="1cqw" alignItems="center">
         {/* Current level */}
         <Typography sx={{ textTransform: 'uppercase', fontSize: '5cqw', fontWeight: 700, lineHeight: 1.1 }}>
-          Level {clock.level}
+          {clock.isBreak ? 'Break' : `Level ${clock.level}`}
         </Typography>
 
         {/* Timer */}
@@ -35,24 +53,28 @@ export function TournamentClockTimer() {
           {clock.time}
         </Typography>
 
-        {/* Current blinds & ante */}
-        <Box>
-          <Typography sx={{ textTransform: 'uppercase', fontSize: '4cqw', fontWeight: 700, lineHeight: 1.2 }}>
-            Blinds &amp; Ante
-          </Typography>
-          <Typography sx={{ fontWeight: 700, fontSize: '4cqw', lineHeight: 1.2 }}>
-            {clock.blinds}
-          </Typography>
-        </Box>
+        {/* Current blinds & ante – hidden on break */}
+        {!clock.isBreak && (
+          <Box>
+            <Typography sx={{ textTransform: 'uppercase', fontSize: '4cqw', fontWeight: 700, lineHeight: 1.2 }}>
+              Blinds &amp; Ante
+            </Typography>
+            <Typography sx={{ fontWeight: 700, fontSize: '4cqw', lineHeight: 1.2 }}>
+              {clock.blinds}
+            </Typography>
+          </Box>
+        )}
 
         {/* Next level */}
         <Box>
           <Typography sx={{ textTransform: 'uppercase', opacity: 0.85, fontSize: '2.5cqw', fontWeight: 700, lineHeight: 1.2 }}>
-            Next Level {clock.nextLevel}
+            {clock.isNextBreak ? 'Next break' : `Next Level ${clock.nextLevel}`}
           </Typography>
-          <Typography sx={{ fontWeight: 700, opacity: 0.85, fontSize: '2.5cqw', lineHeight: 1.2 }}>
-            {clock.nextBlinds}
-          </Typography>
+          {clock.nextBlinds ? (
+            <Typography sx={{ fontWeight: 700, opacity: 0.85, fontSize: '2.5cqw', lineHeight: 1.2 }}>
+              {clock.nextBlinds}
+            </Typography>
+          ) : null}
         </Box>
       </Stack>
     </Box>

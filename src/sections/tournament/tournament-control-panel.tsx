@@ -22,14 +22,15 @@ import { TournamentSetLevelDialog } from './tournament-set-level-dialog';
 type Props = {
   id: number;
   levels: TourLevelItemDto[];
+  /** Clock có đang chạy không: running = true, paused/chưa start = false */
+  isRunning: boolean;
   controlMutate: () => void;
 };
 
 // ----------------------------------------------------------------------
 
-export function TournamentControlPanel({ id, levels, controlMutate }: Props) {
+export function TournamentControlPanel({ id, levels, isRunning, controlMutate }: Props) {
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
-  const [isStarted, setIsStarted] = useState(false);
 
   const confirmReset = useBoolean();
   const setLevelDialog = useBoolean();
@@ -61,18 +62,15 @@ export function TournamentControlPanel({ id, levels, controlMutate }: Props) {
       label: 'Start',
       icon: 'solar:play-bold',
       color: 'success' as const,
-      disabled: isStarted,
-      onClick: async () => {
-        const ok = await runAction('start', () => tourService.startClock(id));
-        if (ok) setIsStarted(true);
-      },
+      disabled: isRunning,
+      onClick: () => runAction('start', () => tourService.startClock(id)),
     },
     {
       key: 'pause',
       label: 'Pause',
       icon: 'solar:pause-bold',
       color: 'warning' as const,
-      disabled: !isStarted,
+      disabled: !isRunning,
       onClick: () => runAction('pause', () => tourService.pauseClock(id)),
     },
     {
@@ -80,7 +78,7 @@ export function TournamentControlPanel({ id, levels, controlMutate }: Props) {
       label: 'Resume',
       icon: 'solar:play-circle-bold',
       color: 'success' as const,
-      disabled: !isStarted,
+      disabled: !isRunning,
       onClick: () => runAction('resume', () => tourService.resumeClock(id)),
     },
     {
@@ -88,7 +86,7 @@ export function TournamentControlPanel({ id, levels, controlMutate }: Props) {
       label: 'Prev',
       icon: 'solar:rewind-back-bold',
       color: 'inherit' as const,
-      disabled: !isStarted,
+      disabled: !isRunning,
       onClick: () => runAction('prev', () => tourService.prevLevel(id)),
     },
     {
@@ -96,7 +94,7 @@ export function TournamentControlPanel({ id, levels, controlMutate }: Props) {
       label: 'Next',
       icon: 'solar:rewind-forward-bold',
       color: 'inherit' as const,
-      disabled: !isStarted,
+      disabled: !isRunning,
       onClick: () => runAction('next', () => tourService.nextLevel(id)),
     },
     {
@@ -104,7 +102,7 @@ export function TournamentControlPanel({ id, levels, controlMutate }: Props) {
       label: 'Set level',
       icon: 'solar:list-check-bold',
       color: 'primary' as const,
-      disabled: !isStarted,
+      disabled: !isRunning,
       onClick: () => setLevelDialog.onTrue(),
     },
     {
@@ -170,8 +168,7 @@ export function TournamentControlPanel({ id, levels, controlMutate }: Props) {
             color="error"
             onClick={async () => {
               confirmReset.onFalse();
-              const ok = await runAction('reset', () => tourService.resetClock(id));
-              if (ok) setIsStarted(false);
+              await runAction('reset', () => tourService.resetClock(id));
             }}
           >
             Reset
