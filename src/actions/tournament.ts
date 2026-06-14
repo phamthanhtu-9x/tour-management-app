@@ -1,5 +1,5 @@
 import type { ITournamentItem } from 'src/types/tournament';
-import type { PaginationParams, TourControlData } from 'src/services/types';
+import type { PaginationParams, TourControlData, TourLevelItemDto } from 'src/services/types';
 
 import useSWR from 'swr';
 import { useMemo } from 'react';
@@ -89,6 +89,32 @@ export function useGetTourControl(id: number | undefined) {
       controlError: error,
       controlValidating: isValidating,
       controlMutate: mutate,
+    };
+  }, [data, error, isLoading, isValidating, mutate]);
+
+  return memoizedValue;
+}
+
+// ----------------------------------------------------------------------
+
+/** Danh sách level (blind structure) của một tournament. Chỉ fetch khi có id. */
+export function useGetTourLevels(id: number | undefined) {
+  const { data, isLoading, error, isValidating, mutate } = useSWR(
+    id ? ['tournament-levels', id] : null,
+    () => tourService.getTourLevels(id!),
+    swrOptions
+  );
+
+  const memoizedValue = useMemo(() => {
+    const levels = extractItems<TourLevelItemDto>(data);
+
+    return {
+      levels,
+      levelsLoading: isLoading,
+      levelsError: error,
+      levelsValidating: isValidating,
+      levelsEmpty: !isLoading && !levels.length,
+      levelsMutate: mutate,
     };
   }, [data, error, isLoading, isValidating, mutate]);
 

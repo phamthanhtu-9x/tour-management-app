@@ -1,3 +1,5 @@
+import type { TourLevelItemDto } from 'src/services/types';
+
 // ----------------------------------------------------------------------
 
 export type ITournamentItem = {
@@ -9,4 +11,5 @@ export type ITournamentItem = {
   createdAt: string;
   updatedAt: string;
   userId: number;
+  levels?: TourLevelItemDto[];
 };

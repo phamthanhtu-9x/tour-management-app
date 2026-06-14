@@ -66,7 +66,7 @@ export function TournamentDetailsView({ id }: Props) {
 
       {tabs.value === 'control' && <TournamentDetailsControl />}
 
-      {tabs.value === 'blind' && <TournamentDetailsBlind />}
+      {tabs.value === 'blind' && <TournamentDetailsBlind id={id} />}
 
       {tabs.value === 'player' && <TournamentDetailsPlayer id={id} />}
     </DashboardContent>

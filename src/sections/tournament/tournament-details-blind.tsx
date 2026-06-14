@@ -1,14 +1,32 @@
 import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
+import CircularProgress from '@mui/material/CircularProgress';
+
+import { useGetTourLevels } from 'src/actions/tournament';
+
+import { TournamentBlindEditForm } from './tournament-blind-edit-form';
 
 // ----------------------------------------------------------------------
 
-export function TournamentDetailsBlind() {
+type Props = {
+  id: number;
+};
+
+export function TournamentDetailsBlind({ id }: Props) {
+  const { levels, levelsLoading, levelsMutate } = useGetTourLevels(id);
+
+  if (levelsLoading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
   return (
-    <Box sx={{ maxWidth: 720, mx: 'auto', py: 4 }}>
-      <Typography variant="h5" sx={{ mb: 2 }}>
-        Blind
-      </Typography>
-    </Box>
+    <TournamentBlindEditForm
+      tourId={id}
+      currentLevels={levels}
+      onSaved={() => levelsMutate()}
+    />
   );
 }

@@ -1,4 +1,4 @@
-import type { DefaultLevelItemDto } from 'src/services/types';
+import type { TourLevelItemDto } from 'src/services/types';
 
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -11,7 +11,7 @@ import LoadingButton from '@mui/lab/LoadingButton';
 import { toast } from 'src/components/snackbar';
 import { Form } from 'src/components/hook-form';
 
-import { setupService } from 'src/services';
+import { tourService } from 'src/services';
 
 import { LevelsEditor, BlindLevelsSchema } from '../_blind/blind-levels-editor';
 
@@ -19,18 +19,21 @@ import type { BlindLevelsSchemaType } from '../_blind/blind-levels-editor';
 
 // ----------------------------------------------------------------------
 
-export const DefaultBlindSchema = BlindLevelsSchema;
+export { BlindLevelsSchema };
 
-export type DefaultBlindSchemaType = BlindLevelsSchemaType;
+export const TournamentBlindSchema = BlindLevelsSchema;
+
+export type TournamentBlindSchemaType = BlindLevelsSchemaType;
 
 // ----------------------------------------------------------------------
 
 type Props = {
-  currentLevels?: DefaultLevelItemDto[];
+  tourId: number;
+  currentLevels?: TourLevelItemDto[];
   onSaved: () => void;
 };
 
-export function DefaultBlindEditForm({ currentLevels, onSaved }: Props) {
+export function TournamentBlindEditForm({ tourId, currentLevels, onSaved }: Props) {
   const defaultValues = useMemo(() => {
     if (currentLevels?.length) {
       return {
@@ -52,8 +55,8 @@ export function DefaultBlindEditForm({ currentLevels, onSaved }: Props) {
     };
   }, [currentLevels]);
 
-  const methods = useForm<DefaultBlindSchemaType>({
-    resolver: zodResolver(DefaultBlindSchema),
+  const methods = useForm<TournamentBlindSchemaType>({
+    resolver: zodResolver(TournamentBlindSchema),
     defaultValues,
   });
 
@@ -65,15 +68,14 @@ export function DefaultBlindEditForm({ currentLevels, onSaved }: Props) {
 
   const onSubmit = handleSubmit(async (data) => {
     try {
-      const levels: DefaultLevelItemDto[] = data.levels.map((item, i) => {
-        const level: DefaultLevelItemDto = {
+      const levels: TourLevelItemDto[] = data.levels.map((item, i) => {
+        const level: TourLevelItemDto = {
           type: item.type,
-          idx: i + 1, // idx bắt đầu từ 1
+          idx: i + 1,
           duration: item.duration,
         };
-        // Blind luôn có name = "Level {blindIndex}"; Break dùng name người dùng nhập
         if (item.type === 'BLIND') {
-          level.name = item.name; // name đã được gán = "Level {n}" bởi LevelsEditor
+          level.name = item.name;
           level.smallBlind = item.smallBlind ?? 0;
           level.bigBlind = item.bigBlind ?? 0;
           level.ante = item.ante ?? 0;
@@ -83,8 +85,8 @@ export function DefaultBlindEditForm({ currentLevels, onSaved }: Props) {
         return level;
       });
 
-      await setupService.setDefaultLevels({ levels });
-      toast.success('Default blind updated!');
+      await tourService.updateTour(tourId, { levels });
+      toast.success('Blind updated!');
       onSaved();
     } catch (error) {
       console.error(error);
