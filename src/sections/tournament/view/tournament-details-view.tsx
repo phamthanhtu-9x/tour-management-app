@@ -36,7 +36,7 @@ type Props = {
 export function TournamentDetailsView({ id }: Props) {
   const tabs = useTabs('clock');
 
-  const { tournament, tournamentLoading } = useGetTournament(id);
+  const { tournament, tournamentLoading, tournamentMutate } = useGetTournament(id);
 
   const renderTabs = (
     <Tabs value={tabs.value} onChange={tabs.onChange} sx={{ mb: { xs: 3, md: 5 } }}>
@@ -64,7 +64,14 @@ export function TournamentDetailsView({ id }: Props) {
         <TournamentDetailsClock tournament={tournament} loading={tournamentLoading} />
       )}
 
-      {tabs.value === 'control' && <TournamentDetailsControl />}
+      {tabs.value === 'control' && (
+        <TournamentDetailsControl
+          id={id}
+          tournament={tournament}
+          tournamentMutate={tournamentMutate}
+          tournamentLoading={tournamentLoading}
+        />
+      )}
 
       {tabs.value === 'blind' && <TournamentDetailsBlind id={id} />}
 
