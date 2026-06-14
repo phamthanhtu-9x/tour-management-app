@@ -70,6 +70,7 @@ export type TourControlEntry = {
   name?: string;
   avatar?: string;
   isEliminated?: boolean;
+  reBuyCount?: number;
 };
 
 export type TourControlData = {

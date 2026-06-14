@@ -10,6 +10,7 @@ import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
 import Switch from '@mui/material/Switch';
 import Avatar from '@mui/material/Avatar';
+import IconButton from '@mui/material/IconButton';
 import TableBody from '@mui/material/TableBody';
 import TableRow from '@mui/material/TableRow';
 import TableCell from '@mui/material/TableCell';
@@ -25,6 +26,7 @@ import { getFileUrl } from 'src/utils/file-url';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
+import { ConfirmDialog } from 'src/components/custom-dialog';
 import { EmptyContent } from 'src/components/empty-content';
 
 import { TournamentPlayerDialog } from './tournament-player-dialog';
@@ -41,10 +43,12 @@ export function TournamentDetailsPlayer({ id }: Props) {
   const { control, controlLoading, controlMutate } = useGetTourControl(id);
 
   const dialog = useBoolean();
+  const confirm = useBoolean();
 
   const entries: TourControlEntry[] = control?.entries ?? [];
 
   const [togglingEntry, setTogglingEntry] = useState<number | null>(null);
+  const [deleteIndex, setDeleteIndex] = useState<number | null>(null);
 
   // ----------------------------------------------------------------------
 
@@ -68,6 +72,27 @@ export function TournamentDetailsPlayer({ id }: Props) {
     [entries, id, controlMutate]
   );
 
+  const handleChangeReBuy = useCallback(
+    async (index: number, delta: number) => {
+      const current = entries[index]?.reBuyCount ?? 0;
+      const next = Math.max(0, current + delta);
+      if (next === current) return;
+
+      try {
+        const updated = entries.map((e, i) =>
+          i === index ? { ...e, reBuyCount: next } : e
+        );
+        await tourService.updateEntries(id, updated);
+        controlMutate();
+        toast.success('Updated!');
+      } catch (error) {
+        console.error(error);
+        toast.error('Update failed!');
+      }
+    },
+    [entries, id, controlMutate]
+  );
+
   const handleUpdateEntries = useCallback(
     async (selected: TourControlEntry[]) => {
       try {
@@ -82,6 +107,30 @@ export function TournamentDetailsPlayer({ id }: Props) {
     },
     [id, controlMutate, dialog]
   );
+
+  const handleOpenDelete = useCallback(
+    (index: number) => {
+      setDeleteIndex(index);
+      confirm.onTrue();
+    },
+    [confirm]
+  );
+
+  const handleDeleteEntry = useCallback(async () => {
+    if (deleteIndex === null) return;
+
+    try {
+      const updated = entries.filter((_, i) => i !== deleteIndex);
+      await tourService.updateEntries(id, updated);
+      controlMutate();
+      confirm.onFalse();
+      setDeleteIndex(null);
+      toast.success('Delete success!');
+    } catch (error) {
+      console.error(error);
+      toast.error('Delete failed!');
+    }
+  }, [deleteIndex, entries, id, controlMutate, confirm]);
 
   // ----------------------------------------------------------------------
 
@@ -111,9 +160,13 @@ export function TournamentDetailsPlayer({ id }: Props) {
                 <TableRow>
                   <TableCell sx={{ width: 56 }} />
                   <TableCell>Player Name</TableCell>
+                  <TableCell align="center" sx={{ width: 100 }}>
+                    Re-buy
+                  </TableCell>
                   <TableCell align="right" sx={{ width: 120 }}>
                     In Game
                   </TableCell>
+                  <TableCell align="right" sx={{ width: 56 }} />
                 </TableRow>
               </TableHead>
 
@@ -132,6 +185,30 @@ export function TournamentDetailsPlayer({ id }: Props) {
 
                     <TableCell>{entry.name || '—'}</TableCell>
 
+                    <TableCell align="center">
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleChangeReBuy(index, -1)}
+                          disabled={togglingEntry === index}
+                          sx={{ p: 0.25 }}
+                        >
+                          <Iconify icon="mingcute:minimize-line" width={16} />
+                        </IconButton>
+                        <Typography variant="body2" sx={{ minWidth: 20, textAlign: 'center' }}>
+                          {entry.reBuyCount ?? 0}
+                        </Typography>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleChangeReBuy(index, 1)}
+                          disabled={togglingEntry === index}
+                          sx={{ p: 0.25 }}
+                        >
+                          <Iconify icon="mingcute:add-line" width={16} />
+                        </IconButton>
+                      </Box>
+                    </TableCell>
+
                     <TableCell align="right">
                       {togglingEntry === index ? (
                         <CircularProgress size={20} />
@@ -142,6 +219,12 @@ export function TournamentDetailsPlayer({ id }: Props) {
                           size="small"
                         />
                       )}
+                    </TableCell>
+
+                    <TableCell align="right">
+                      <IconButton color="error" onClick={() => handleOpenDelete(index)}>
+                        <Iconify icon="mingcute:delete-2-line" />
+                      </IconButton>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -156,6 +239,24 @@ export function TournamentDetailsPlayer({ id }: Props) {
         onClose={dialog.onFalse}
         currentEntries={entries}
         onSave={handleUpdateEntries}
+      />
+
+      <ConfirmDialog
+        open={confirm.value}
+        onClose={confirm.onFalse}
+        title="Delete"
+        content={
+          <>
+            Are you sure want to delete{' '}
+            <strong>{deleteIndex !== null ? entries[deleteIndex]?.name : ''}</strong>
+            ?
+          </>
+        }
+        action={
+          <Button variant="contained" color="error" onClick={handleDeleteEntry}>
+            Delete
+          </Button>
+        }
       />
     </>
   );

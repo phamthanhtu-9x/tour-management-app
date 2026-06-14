@@ -122,7 +122,7 @@ export function TournamentPlayerDialog({ open, onClose, currentEntries, onSave }
           updated.push(existing);
         } else {
           const player = allPlayers.find((p) => p.name === name);
-          updated.push({ name, avatar: player?.avatar ?? undefined, isEliminated: false });
+          updated.push({ name, avatar: player?.avatar ?? undefined, isEliminated: false, reBuyCount: 0 });
         }
       });
 

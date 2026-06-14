@@ -7,14 +7,40 @@ import Typography from '@mui/material/Typography';
 
 type Props = {
   tournament?: ITournamentItem | null;
+  activeEntries?: number;
+  totalEntries?: number;
+  totalBuyin?: number;
+  totalReBuys?: number;
 };
 
-export function TournamentClockInfo({ tournament: _tournament }: Props) {
+export function TournamentClockInfo({
+  tournament,
+  activeEntries,
+  totalEntries,
+  totalBuyin,
+  totalReBuys,
+}: Props) {
+  const entriesValue =
+    activeEntries != null && totalEntries != null ? `${activeEntries} / ${totalEntries}` : '—';
+
+  const chipsInPlay =
+    totalEntries != null && tournament?.startingStack != null
+      ? totalEntries * tournament.startingStack
+      : null;
+
+  const avgStack =
+    chipsInPlay != null && activeEntries != null && activeEntries > 0
+      ? Math.round(chipsInPlay / activeEntries).toLocaleString()
+      : '—';
+
   const rows = [
-    { label: 'Entries', value: '18 / 40' },
-    { label: 'Re-buy / Buy-in', value: '10 / 20' },
-    { label: 'Chips in play', value: '40,000' },
-    { label: 'Average Stack', value: '30,000' },
+    { label: 'Entries', value: entriesValue },
+    {
+      label: 'Re-buy / Buy-in',
+      value: `${totalReBuys ?? 0} / ${totalBuyin ?? 0}`,
+    },
+    { label: 'Chips in play', value: chipsInPlay != null ? chipsInPlay.toLocaleString() : '—' },
+    { label: 'Average Stack', value: avgStack },
     { label: 'Next break', value: '00:10:47' },
     { label: 'Reg closed', value: '00:00:00' },
   ];
