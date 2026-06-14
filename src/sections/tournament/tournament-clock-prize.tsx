@@ -1,3 +1,5 @@
+import { useMemo } from 'react';
+
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Table from '@mui/material/Table';
@@ -8,20 +10,48 @@ import TableRow from '@mui/material/TableRow';
 
 // ----------------------------------------------------------------------
 
-const prizes = [
-  { label: 'GTD', value: '10' },
-  { label: 'I', value: '1' },
-  { label: 'II', value: '1' },
-  { label: 'III', value: '1' },
-  { label: 'IV', value: '1' },
-  { label: 'V', value: '1' },
-  { label: 'VI', value: '1' },
-  { label: 'VII', value: '1' },
-  { label: 'VIII', value: '1' },
-  { label: 'IX', value: '1' },
-];
+type Props = {
+  gtdPrize?: { total: number; ranks: number[] };
+};
 
-export function TournamentClockPrize() {
+// ----------------------------------------------------------------------
+
+const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
+
+export function TournamentClockPrize({ gtdPrize }: Props) {
+  const prizes = useMemo(() => {
+    const { total, ranks } = gtdPrize ?? { total: 0, ranks: [] };
+
+    if (ranks.length === 0) return [{ label: 'GTD', value: '—' }];
+
+    const grouped: { label: string; value: string }[] = [
+      { label: 'GTD', value: total.toLocaleString() },
+    ];
+
+    let i = 0;
+    while (i < ranks.length) {
+      const currentValue = ranks[i];
+      const groupLabels: string[] = [];
+
+      while (i < ranks.length && ranks[i] === currentValue) {
+        groupLabels.push(ROMAN[i] ?? `${i + 1}`);
+        i++;
+      }
+
+      const label =
+        groupLabels.length >= 3
+          ? `${groupLabels[0]} ... ${groupLabels[groupLabels.length - 1]}`
+          : groupLabels.join(', ');
+
+      grouped.push({
+        label,
+        value: currentValue.toLocaleString(),
+      });
+    }
+
+    return grouped;
+  }, [gtdPrize]);
+
   return (
     <Box
       sx={{

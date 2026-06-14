@@ -114,6 +114,11 @@ export type SetLevelDto = {
 /** Body cho cập nhật danh sách entries (người chơi) của control */
 export type UpdateEntriesDto = TourControlEntry[];
 
+/** Body cho cập nhật chuỗi GTD (giải thưởng) của control */
+export type UpdateGtdDto = {
+  gtd: string;
+};
+
 // ---------------------------------- Setup ----------------------------------
 
 export type DefaultLevelItemDto = {

@@ -30,17 +30,26 @@ export function TournamentDetailsClock({ tournament }: Props) {
 
   const { control } = useGetTourControl(tournament?.id);
 
-  const { activeEntries, totalBuyin, totalReBuys, totalEntries } = useMemo(() => {
+  const { activeEntries, totalBuyin, totalReBuys, totalEntries, gtdPrize } = useMemo(() => {
     const entries = control?.entries ?? [];
     const buyin = entries.length;
     const reBuys = entries.reduce((sum, e) => sum + (e.reBuyCount ?? 0), 0);
+
+    const rawGtd: string = (control as any)?.gtd ?? '';
+    const gtdNumbers = rawGtd
+      .split('/')
+      .map((s: string) => Number(s.trim()))
+      .filter((n: number) => !Number.isNaN(n) && n > 0);
+    const gtdTotal = gtdNumbers.reduce((sum: number, n: number) => sum + n, 0);
+
     return {
       activeEntries: entries.filter((e) => !e.isEliminated).length,
       totalBuyin: buyin,
       totalReBuys: reBuys,
       totalEntries: buyin + reBuys,
+      gtdPrize: { total: gtdTotal, ranks: gtdNumbers },
     };
-  }, [control?.entries]);
+  }, [control?.entries, (control as any)?.gtd]);
 
   const handleToggleFullscreen = useCallback(async () => {
     if (document.fullscreenElement) {
@@ -81,7 +90,7 @@ export function TournamentDetailsClock({ tournament }: Props) {
         topRight={renderTopRight}
         left={<TournamentClockInfo tournament={tournament} activeEntries={activeEntries} totalEntries={totalEntries} totalBuyin={totalBuyin} totalReBuys={totalReBuys} />}
         center={<TournamentClockTimer />}
-        right={<TournamentClockPrize />}
+        right={<TournamentClockPrize gtdPrize={gtdPrize} />}
         fullscreen={fullscreen.value}
       />
     </Box>

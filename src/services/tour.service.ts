@@ -2,6 +2,7 @@ import type {
   SetLevelDto,
   InsertTourDto,
   UpdateTourDto,
+  UpdateGtdDto,
   UpdateEntriesDto,
   PaginationParams,
 } from './types';
@@ -67,4 +68,8 @@ export const tourService = {
   /** PATCH /tours/{id}/control/entries — Cập nhật danh sách entries (người chơi) */
   updateEntries: (id: number, body: UpdateEntriesDto) =>
     apiClient.patch(`/tours/${id}/control/entries`, body).then((res) => res.data),
+
+  /** PATCH /tours/{id}/control/gtd — Cập nhật chuỗi GTD (giải thưởng) của control */
+  updateGtd: (id: number, body: UpdateGtdDto) =>
+    apiClient.patch(`/tours/${id}/control/gtd`, body).then((res) => res.data),
 };
