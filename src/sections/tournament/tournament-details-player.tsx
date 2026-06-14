@@ -112,7 +112,7 @@ export function TournamentDetailsPlayer({ id }: Props) {
                   <TableCell sx={{ width: 56 }} />
                   <TableCell>Player Name</TableCell>
                   <TableCell align="right" sx={{ width: 120 }}>
-                    Eliminated
+                    In Game
                   </TableCell>
                 </TableRow>
               </TableHead>
@@ -137,7 +137,7 @@ export function TournamentDetailsPlayer({ id }: Props) {
                         <CircularProgress size={20} />
                       ) : (
                         <Switch
-                          checked={!!entry.isEliminated}
+                          checked={!entry.isEliminated}
                           onChange={() => handleToggleEliminated(index, !!entry.isEliminated)}
                           size="small"
                         />

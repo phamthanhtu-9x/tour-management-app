@@ -29,7 +29,7 @@ export function TournamentClockPrize() {
         display: 'flex',
         flexDirection: 'column',
         px: 2,
-        pt: '3cqw'
+        pt: '3cqw',
       }}
     >
       <TableContainer>
@@ -42,6 +42,7 @@ export function TournamentClockPrize() {
                     borderBottom: 'none',
                     py: 1,
                     textAlign: 'center',
+                    color: '#fff',
                   }}
                 >
                   <Typography sx={{ fontSize: '2cqw', fontWeight: index === 0 ? 700 : 600, lineHeight: 1.2 }}>
@@ -53,6 +54,7 @@ export function TournamentClockPrize() {
                     borderBottom: 'none',
                     py: index === 0 ? 0.75 : 0.5,
                     textAlign: 'right',
+                    color: '#fff',
                   }}
                 >
                   <Typography sx={{ fontSize: '2cqw', fontWeight: index === 0 ? 700 : 600, lineHeight: 1.2 }}>
