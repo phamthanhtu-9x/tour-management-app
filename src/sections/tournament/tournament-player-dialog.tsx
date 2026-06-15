@@ -49,6 +49,7 @@ export function TournamentPlayerDialog({ open, onClose, currentEntries, onSave }
     if (open) {
       setAllPlayers([]);
       setPage(1);
+      prevPlayersRef.current = [];
     }
   }, [open]);
 

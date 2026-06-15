@@ -110,7 +110,7 @@ export function TournamentDetailsView({ id }: Props) {
 
       {tabs.value === 'blind' && <TournamentDetailsBlind id={id} />}
 
-      {tabs.value === 'player' && <TournamentDetailsPlayer id={id} />}
+      {tabs.value === 'player' && <TournamentDetailsPlayer id={id} tourState={tourState} wsConnected={connected} />}
     </DashboardContent>
   );
 }

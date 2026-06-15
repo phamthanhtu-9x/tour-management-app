@@ -1,5 +1,6 @@
 'use client';
 
+import type { ITourState } from 'src/types/tour-socket';
 import type { TourControlEntry } from 'src/services/types';
 
 import { useState, useCallback } from 'react';
@@ -35,17 +36,30 @@ import { TournamentPlayerDialog } from './tournament-player-dialog';
 
 type Props = {
   id: number;
+  /** Real-time state từ WebSocket (ưu tiên dùng khi connected). */
+  tourState?: ITourState | null;
+  /** WebSocket đã kết nối hay chưa. */
+  wsConnected?: boolean;
 };
 
 // ----------------------------------------------------------------------
 
-export function TournamentDetailsPlayer({ id }: Props) {
-  const { control, controlLoading, controlMutate } = useGetTourControl(id);
+export function TournamentDetailsPlayer({ id, tourState, wsConnected }: Props) {
+  const { control: restControl, controlLoading, controlMutate } = useGetTourControl(id);
+
+  // ---- Merge socket data với REST data: socket ưu tiên khi connected ----
+  const entries: TourControlEntry[] =
+    wsConnected && tourState
+      ? tourState.entries.map((e) => ({
+          name: e.name,
+          avatar: e.avatar,
+          isEliminated: e.isEliminated,
+          reBuyCount: e.reBuyCount,
+        }))
+      : (restControl?.entries ?? []);
 
   const dialog = useBoolean();
   const confirm = useBoolean();
-
-  const entries: TourControlEntry[] = control?.entries ?? [];
 
   const [togglingEntry, setTogglingEntry] = useState<number | null>(null);
   const [deleteIndex, setDeleteIndex] = useState<number | null>(null);
