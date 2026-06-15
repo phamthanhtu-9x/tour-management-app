@@ -79,6 +79,23 @@ export function TournamentTourTimer({
     }
   }, [anchorElapsed, serverCurrentLevel]);
 
+  // Khi component mount (vd: chuyển tab quay lại Control): gọi thẳng API lấy elapsed chuẩn từ server.
+  // Tránh trường hợp tourState chưa có update mới → displayElapsed khởi tạo từ giá trị cũ.
+  useEffect(() => {
+    if (!tourId) return;
+
+    tourService.getTourControl(tourId).then((res: unknown) => {
+      const data: TourControlData | null = (res as any)?.data ?? res;
+      if (data?.elapsedSeconds != null) {
+        anchorRef.current = { elapsed: data.elapsedSeconds, at: Date.now() };
+        setDisplayElapsed(data.elapsedSeconds);
+      }
+    }).catch(() => {
+      // Bỏ qua lỗi – anchor vẫn chạy từ giá trị khởi tạo.
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tourId]);
+
   // Tick mỗi giây: tính elapsed từ timestamp thực.
   useEffect(() => {
     if (isPaused) return undefined;
