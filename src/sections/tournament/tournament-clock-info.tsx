@@ -11,6 +11,8 @@ type Props = {
   totalEntries?: number;
   totalBuyin?: number;
   totalReBuys?: number;
+  nextBreakIn?: string | null;
+  regEndIn?: string | null;
 };
 
 export function TournamentClockInfo({
@@ -19,6 +21,8 @@ export function TournamentClockInfo({
   totalEntries,
   totalBuyin,
   totalReBuys,
+  nextBreakIn,
+  regEndIn,
 }: Props) {
   const entriesValue =
     activeEntries != null && totalEntries != null ? `${activeEntries} / ${totalEntries}` : '—';
@@ -41,8 +45,8 @@ export function TournamentClockInfo({
     },
     { label: 'Chips in play', value: chipsInPlay != null ? chipsInPlay.toLocaleString() : '—' },
     { label: 'Average Stack', value: avgStack },
-    { label: 'Next break', value: '00:10:47' },
-    { label: 'Reg closed', value: '00:00:00' },
+    { label: 'Next break', value: nextBreakIn || '—' },
+    { label: 'Reg closed', value: regEndIn || '—' },
   ];
 
   return (

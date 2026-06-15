@@ -15,6 +15,8 @@ import {
   findNextLevel,
   getBlindLevelNumber,
   blindsLabel,
+  getSecondsToNextBreak,
+  getSecondsToRegEnd,
 } from './tournament-clock-utils';
 
 // ----------------------------------------------------------------------
@@ -37,6 +39,10 @@ export type CountdownTimerData = {
   isBreak?: boolean;
   /** Level kế tiếp là BREAK. */
   isNextBreak?: boolean;
+  /** Thời gian countdown tới break kế tiếp (HH:MM:SS), hoặc null nếu không có break nào. */
+  nextBreakIn: string | null;
+  /** Thời gian countdown tới khi đóng đăng ký (HH:MM:SS), hoặc null nếu chưa set hoặc đã đóng. */
+  regEndIn: string | null;
 };
 
 // ----------------------------------------------------------------------
@@ -52,6 +58,10 @@ type Props = {
   restControl?: TourControlData | null;
   /** Tour ID – dùng để gọi trực tiếp API getTourControl khi tab quay lại. */
   tourId?: number;
+  /** Callback đẩy clock data lên parent (vd: để ClockInfo hiển thị "Next break in"). */
+  onDataChange?: (data: CountdownTimerData) => void;
+  /** idx của level đăng ký cuối (regEnd) – dùng để tính thời gian còn lại tới khi đóng đăng ký. */
+  regEndIdx?: number | null;
 };
 
 // ----------------------------------------------------------------------
@@ -61,6 +71,14 @@ function formatTime(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60);
   const s = totalSeconds % 60;
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+}
+
+/** Format giây → HH:MM:SS */
+function formatTimeLong(totalSeconds: number): string {
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 }
 
 // ----------------------------------------------------------------------
@@ -82,6 +100,8 @@ export function TournamentCountdownTimer({
   loading,
   restControl,
   tourId,
+  onDataChange,
+  regEndIdx,
 }: Props) {
   // -------------------------------------------------------
   // Client-side ticking
@@ -203,6 +223,22 @@ export function TournamentCountdownTimer({
         ? formatBlinds(nextBlindLevelObj)
         : '—';
 
+    // ---- Time to next break (HH:MM:SS) ----
+    const nextBreakSeconds =
+      currentLevelIdx != null
+        ? getSecondsToNextBreak(levels, currentLevelIdx, displayElapsed)
+        : null;
+    const nextBreakIn =
+      nextBreakSeconds != null ? formatTimeLong(nextBreakSeconds) : null;
+
+    // ---- Time to reg close (HH:MM:SS) ----
+    const regEndSeconds =
+      currentLevelIdx != null
+        ? getSecondsToRegEnd(levels, currentLevelIdx, regEndIdx, displayElapsed)
+        : null;
+    const regEndIn =
+      regEndSeconds != null ? formatTimeLong(regEndSeconds) : null;
+
     return {
       level: currentIsBreak || currentBlindNumber === null ? '—' : currentBlindNumber,
       time: timeDisplay,
@@ -211,8 +247,15 @@ export function TournamentCountdownTimer({
       nextBlinds: nextBlindsDisplay,
       isBreak: currentIsBreak,
       isNextBreak: nextIsBreak,
+      nextBreakIn,
+      regEndIn,
     };
   }, [tourState, levels, displayElapsed]);
+
+  // Đẩy clock data lên parent mỗi khi thay đổi.
+  useEffect(() => {
+    onDataChange?.(clockData);
+  }, [clockData, onDataChange]);
 
   // -------------------------------------------------------
   // Loading state
@@ -316,6 +359,7 @@ export function TournamentCountdownTimer({
             </Typography>
           ) : null}
         </Box>
+
       </Stack>
     </Box>
   );

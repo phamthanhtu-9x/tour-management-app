@@ -2,7 +2,7 @@ import type { ITournamentItem } from 'src/types/tournament';
 import type { TourLevelItemDto } from 'src/services/types';
 import type { ITourState, ITourLevelsPayload } from 'src/types/tour-socket';
 
-import { useMemo, useCallback, useRef } from 'react';
+import { useMemo, useCallback, useRef, useState } from 'react';
 
 import Typography from '@mui/material/Typography';
 
@@ -14,6 +14,7 @@ import { Iconify } from 'src/components/iconify';
 
 import { TournamentClockInfo } from './tournament-clock-info';
 import { TournamentClockPrize } from './tournament-clock-prize';
+import type { CountdownTimerData } from './tournament-countdown-timer';
 import { TournamentCountdownTimer } from './tournament-countdown-timer';
 import { TournamentClockLayout } from './tournament-clock-layout';
 
@@ -54,6 +55,8 @@ export function TournamentDetailsClock({
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const fullscreen = useBoolean();
+
+  const [clockData, setClockData] = useState<CountdownTimerData | null>(null);
 
   const { control: restControl } = useGetTourControl(tournament?.id);
   const { levels: restLevels } = useGetTourLevels(tournament?.id);
@@ -140,6 +143,8 @@ export function TournamentDetailsClock({
           totalEntries={totalEntries}
           totalBuyin={buyin}
           totalReBuys={totalReBuys}
+          nextBreakIn={clockData?.nextBreakIn}
+          regEndIn={clockData?.regEndIn}
         />
       }
       center={
@@ -148,6 +153,8 @@ export function TournamentDetailsClock({
           levels={levels}
           restControl={restControl}
           tourId={tournament?.id}
+          onDataChange={setClockData}
+          regEndIdx={tournament?.regEnd}
         />
       }
       right={<TournamentClockPrize gtdPrize={gtdPrize} />}
