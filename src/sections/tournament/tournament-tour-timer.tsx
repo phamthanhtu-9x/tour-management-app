@@ -12,7 +12,13 @@ import CircularProgress from '@mui/material/CircularProgress';
 
 import { tourService } from 'src/services';
 
-import { formatBlinds, findNextLevel, getBlindLevelNumber } from './tournament-clock-utils';
+import {
+  formatBlinds,
+  findNextLevel,
+  getBlindLevelNumber,
+  getSecondsToNextBreak,
+  getSecondsToRegEnd,
+} from './tournament-clock-utils';
 
 // ----------------------------------------------------------------------
 
@@ -41,6 +47,14 @@ function formatTime(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60);
   const s = totalSeconds % 60;
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+}
+
+/** Format giây → HH:MM:SS */
+function formatTimeLong(totalSeconds: number): string {
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 }
 
 // ----------------------------------------------------------------------
@@ -200,6 +214,21 @@ export function TournamentTourTimer({
 
     const gtd = (control as any)?.gtd ?? '';
 
+    // ---- Next break / Reg closed ----
+    const nextBreakSeconds =
+      currentLevelIdx != null
+        ? getSecondsToNextBreak(levels, currentLevelIdx, displayElapsed)
+        : null;
+    const nextBreakIn =
+      nextBreakSeconds != null ? formatTimeLong(nextBreakSeconds) : '—';
+
+    const regEndSeconds =
+      currentLevelIdx != null
+        ? getSecondsToRegEnd(levels, currentLevelIdx, tournament?.regEnd, displayElapsed)
+        : null;
+    const regEndIn =
+      regEndSeconds != null ? formatTimeLong(regEndSeconds) : '—';
+
     return [
       { label: 'Current Level', value: currentLevelFull },
       { label: 'Next Level', value: nextLevelFull },
@@ -208,6 +237,8 @@ export function TournamentTourTimer({
       { label: 'Re-buy / Buy-in', value: rebuyBuyinValue },
       { label: 'Chips in play', value: chipsInPlay != null ? chipsInPlay.toLocaleString() : '—' },
       { label: 'Average Stack', value: avgStack },
+      { label: 'Next break', value: nextBreakIn },
+      { label: 'Reg closed', value: regEndIn },
       { label: 'GTD', value: gtd || '—' },
     ];
   }, [control, levels, tournament, displayElapsed]);
