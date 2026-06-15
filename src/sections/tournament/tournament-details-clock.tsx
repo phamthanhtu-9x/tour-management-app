@@ -116,6 +116,7 @@ export function TournamentDetailsClock({
 
   return (
     <TournamentClockLayout
+      ref={containerRef}
       fullscreen={fullscreen.value}
       topCenter={
         <Typography

@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react';
+import type { ReactNode, Ref } from 'react';
+import { forwardRef } from 'react';
 
 import Box from '@mui/material/Box';
 
@@ -32,12 +33,16 @@ type Props = {
  *   │  left  │ center │ right  │
  *   └────────┴────────┴────────┘
  */
-export function TournamentClockLayout({ topCenter, topRight, left, center, right, fullscreen }: Props) {
+export const TournamentClockLayout = forwardRef<HTMLDivElement, Props>(function TournamentClockLayout(
+  { topCenter, topRight, left, center, right, fullscreen },
+  ref: Ref<HTMLDivElement>,
+) {
   const sideWidth = 25; // bottom row
   const topSideWidth = 10; // top row: center = sides × 1.25 → sides ≈ 30.77
 
   return (
     <Box
+      ref={ref}
       sx={{
         width: '100%',
         height: '100%',
@@ -76,4 +81,4 @@ export function TournamentClockLayout({ topCenter, topRight, left, center, right
       </Box>
     </Box>
   );
-}
+});
