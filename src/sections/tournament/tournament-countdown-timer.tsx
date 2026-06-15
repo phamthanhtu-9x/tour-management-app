@@ -333,32 +333,34 @@ export function TournamentCountdownTimer({
           </Box>
         )}
 
-        {/* Next level */}
-        <Box>
-          <Typography
-            sx={{
-              textTransform: 'uppercase',
-              opacity: 0.85,
-              fontSize: '2.5cqw',
-              fontWeight: 700,
-              lineHeight: 1.2,
-            }}
-          >
-            {clockData.isNextBreak ? 'Next break' : `Next Level ${clockData.nextLevel}`}
-          </Typography>
-          {clockData.nextBlinds ? (
+        {/* Next level – ẩn khi không còn level kế tiếp */}
+        {clockData.nextLevel !== '—' && (
+          <Box>
             <Typography
               sx={{
-                fontWeight: 700,
+                textTransform: 'uppercase',
                 opacity: 0.85,
                 fontSize: '2.5cqw',
+                fontWeight: 700,
                 lineHeight: 1.2,
               }}
             >
-              {clockData.nextBlinds}
+              {clockData.isNextBreak ? 'Next break' : `Next Level ${clockData.nextLevel}`}
             </Typography>
-          ) : null}
-        </Box>
+            {clockData.nextBlinds ? (
+              <Typography
+                sx={{
+                  fontWeight: 700,
+                  opacity: 0.85,
+                  fontSize: '2.5cqw',
+                  lineHeight: 1.2,
+                }}
+              >
+                {clockData.nextBlinds}
+              </Typography>
+            ) : null}
+          </Box>
+        )}
 
       </Stack>
     </Box>

@@ -120,7 +120,7 @@ export function TournamentDetailsClock({
       topCenter={
         <Typography
           sx={{
-            fontSize: '3cqw',
+            fontSize: '2.5cqw',
             fontWeight: 700,
             textTransform: 'uppercase',
             lineHeight: 1.1,

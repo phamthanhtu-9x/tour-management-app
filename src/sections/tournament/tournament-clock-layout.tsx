@@ -34,7 +34,7 @@ type Props = {
  */
 export function TournamentClockLayout({ topCenter, topRight, left, center, right, fullscreen }: Props) {
   const sideWidth = 25; // bottom row
-  const topSideWidth = 30.77; // top row: center = sides × 1.25 → sides ≈ 30.77
+  const topSideWidth = 10; // top row: center = sides × 1.25 → sides ≈ 30.77
 
   return (
     <Box

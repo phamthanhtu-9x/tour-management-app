@@ -65,17 +65,19 @@ export function TournamentClockTimer({ data }: Props) {
           </Box>
         )}
 
-        {/* Next level */}
-        <Box>
-          <Typography sx={{ textTransform: 'uppercase', opacity: 0.85, fontSize: '2.5cqw', fontWeight: 700, lineHeight: 1.2 }}>
-            {clock.isNextBreak ? 'Next break' : `Next Level ${clock.nextLevel}`}
-          </Typography>
-          {clock.nextBlinds ? (
-            <Typography sx={{ fontWeight: 700, opacity: 0.85, fontSize: '2.5cqw', lineHeight: 1.2 }}>
-              {clock.nextBlinds}
+        {/* Next level – ẩn khi không còn level kế tiếp */}
+        {clock.nextLevel !== '—' && (
+          <Box>
+            <Typography sx={{ textTransform: 'uppercase', opacity: 0.85, fontSize: '2.5cqw', fontWeight: 700, lineHeight: 1.2 }}>
+              {clock.isNextBreak ? 'Next break' : `Next Level ${clock.nextLevel}`}
             </Typography>
-          ) : null}
-        </Box>
+            {clock.nextBlinds ? (
+              <Typography sx={{ fontWeight: 700, opacity: 0.85, fontSize: '2.5cqw', lineHeight: 1.2 }}>
+                {clock.nextBlinds}
+              </Typography>
+            ) : null}
+          </Box>
+        )}
       </Stack>
     </Box>
   );
