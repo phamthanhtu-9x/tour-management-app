@@ -81,6 +81,8 @@ export type TourControlData = {
   isRunning?: boolean;
   /** Chuỗi GTD (giải thưởng) dạng "10/5/3/3/1" */
   gtd?: string;
+  /** Số giây đã trôi qua của level hiện tại (từ REST control) */
+  elapsedSeconds?: number;
   [key: string]: unknown;
 };
 

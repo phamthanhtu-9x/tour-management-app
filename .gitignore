@@ -20,3 +20,4 @@ uploads/*
 node_modules
 node_modules
 swagger.json
+TOUR_WEBSOCKET.md

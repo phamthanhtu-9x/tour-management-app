@@ -1,4 +1,6 @@
 import type { ITournamentItem } from 'src/types/tournament';
+import type { ITourState, ITourLevelsPayload } from 'src/types/tour-socket';
+import type { TourControlData, TourLevelItemDto } from 'src/services/types';
 
 import { useCallback, useMemo, useEffect, useState } from 'react';
 
@@ -28,13 +30,59 @@ type Props = {
   tournament?: ITournamentItem | null;
   tournamentMutate: () => void;
   tournamentLoading?: boolean;
+  /** Real-time state từ WebSocket (ưu tiên dùng khi connected). */
+  tourState?: ITourState | null;
+  /** Real-time levels từ WebSocket (ưu tiên dùng khi connected). */
+  tourLevels?: ITourLevelsPayload | null;
+  /** WebSocket đã kết nối hay chưa. */
+  wsConnected?: boolean;
 };
 
 // ----------------------------------------------------------------------
 
-export function TournamentDetailsControl({ id, tournament, tournamentMutate, tournamentLoading }: Props) {
-  const { levels, levelsLoading } = useGetTourLevels(id);
-  const { control, controlMutate } = useGetTourControl(id);
+export function TournamentDetailsControl({
+  id,
+  tournament,
+  tournamentMutate,
+  tournamentLoading,
+  tourState,
+  tourLevels,
+  wsConnected,
+}: Props) {
+  const { levels: restLevels, levelsLoading } = useGetTourLevels(id);
+  const { control: restControl, controlMutate } = useGetTourControl(id);
+
+  // ---- Merge socket data với REST data: socket ưu tiên khi connected ----
+  const control: TourControlData | null =
+    wsConnected && tourState
+      ? ({
+          currentLevel: tourState.currentLevel,
+          isRunning: tourState.isRunning,
+          entries: tourState.entries.map((e) => ({
+            name: e.name,
+            avatar: e.avatar,
+            isEliminated: e.isEliminated,
+            reBuyCount: e.reBuyCount,
+          })),
+          gtd: tourState.gtd,
+        } as TourControlData)
+      : (restControl ?? null);
+
+  const levels: TourLevelItemDto[] =
+    wsConnected && tourLevels
+      ? (tourLevels.levels.map((l) => ({
+          name: l.name ?? undefined,
+          type: l.type,
+          idx: l.idx,
+          duration: l.duration,
+          smallBlind: l.smallBlind ?? undefined,
+          bigBlind: l.bigBlind ?? undefined,
+          ante: l.ante ?? undefined,
+        })) as TourLevelItemDto[])
+      : restLevels;
+
+  // ---- Data ready flag: socket connected hoặc REST đã load xong ----
+  const dataReady = wsConnected ? !!tourState : !levelsLoading;
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [gtd, setGtd] = useState('');
@@ -79,12 +127,9 @@ export function TournamentDetailsControl({ id, tournament, tournamentMutate, tou
     [id, tournamentMutate]
   );
 
-  const handleChangeGtd = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      setGtd(event.target.value);
-    },
-    []
-  );
+  const handleChangeGtd = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    setGtd(event.target.value);
+  }, []);
 
   const handleSaveGtd = useCallback(async () => {
     setSavingGtd(true);
@@ -113,7 +158,10 @@ export function TournamentDetailsControl({ id, tournament, tournamentMutate, tou
         tournament={tournament}
         control={control}
         levels={levels}
-        levelsLoading={levelsLoading}
+        levelsLoading={!dataReady}
+        tourState={tourState}
+        wsConnected={wsConnected}
+        tourId={id}
       />
 
       <TournamentControlPanel
@@ -121,19 +169,17 @@ export function TournamentDetailsControl({ id, tournament, tournamentMutate, tou
         levels={levels}
         isRunning={control?.isRunning ?? false}
         controlMutate={controlMutate}
+        tourState={tourState}
+        wsConnected={wsConnected}
       />
 
       <Card sx={{ p: 3 }}>
-        {levelsLoading ? (
+        {!dataReady ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
             <CircularProgress size={28} />
           </Box>
         ) : (
-          <Stack
-            direction={{ xs: 'column', sm: 'row' }}
-            spacing={2}
-            alignItems="flex-start"
-          >
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="flex-start">
             {levels.length === 0 ? (
               <Box sx={{ flex: 1, width: '100%' }}>
                 <EmptyContent title="No levels" description="Add levels in the Blind tab first." />

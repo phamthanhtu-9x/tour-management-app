@@ -1,7 +1,8 @@
 import type { ITournamentItem } from 'src/types/tournament';
 import type { TourControlData, TourLevelItemDto } from 'src/services/types';
+import type { ITourState } from 'src/types/tour-socket';
 
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -9,11 +10,9 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
 
-import {
-  formatBlinds,
-  findNextLevel,
-  getBlindLevelNumber,
-} from './tournament-clock-utils';
+import { tourService } from 'src/services';
+
+import { formatBlinds, findNextLevel, getBlindLevelNumber } from './tournament-clock-utils';
 
 // ----------------------------------------------------------------------
 
@@ -22,6 +21,12 @@ type Props = {
   control?: TourControlData | null;
   levels?: TourLevelItemDto[];
   levelsLoading?: boolean;
+  /** Real-time tour state từ WebSocket (để hiển thị countdown). */
+  tourState?: ITourState | null;
+  /** WebSocket đã kết nối hay chưa. */
+  wsConnected?: boolean;
+  /** Tour ID – dùng để gọi trực tiếp API getTourControl khi tab quay lại. */
+  tourId?: number;
 };
 
 // ----------------------------------------------------------------------
@@ -31,7 +36,90 @@ type TimerRow = {
   value: string;
 };
 
-export function TournamentTourTimer({ tournament, control, levels = [], levelsLoading }: Props) {
+/** Format giây → MM:SS (phút cũng pad 2 chữ số) */
+function formatTime(totalSeconds: number): string {
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+}
+
+// ----------------------------------------------------------------------
+
+export function TournamentTourTimer({
+  tournament,
+  control,
+  levels = [],
+  levelsLoading,
+  tourState,
+  wsConnected,
+  tourId,
+}: Props) {
+  // ---- Client-side ticking timer (timestamp-based, chống drift khi tab background) ----
+  const [displayElapsed, setDisplayElapsed] = useState<number>(tourState?.elapsedSeconds ?? 0);
+
+  // Anchor elapsed: socket ưu tiên, fallback REST control.
+  const serverElapsed = tourState?.elapsedSeconds;
+  const restElapsed = control?.elapsedSeconds;
+  const anchorElapsed: number | undefined = serverElapsed ?? restElapsed;
+
+  const serverCurrentLevel = tourState?.currentLevel;
+  const isPaused = tourState?.isPaused ?? true;
+
+  // Mốc neo: elapsed của server + thời điểm (Date.now) nhận được mốc đó.
+  const anchorRef = useRef<{ elapsed: number; at: number }>({
+    elapsed: anchorElapsed ?? 0,
+    at: Date.now(),
+  });
+
+  // Khi server/socket hoặc REST control gửi elapsed mới → reset mốc neo.
+  useEffect(() => {
+    if (anchorElapsed != null) {
+      anchorRef.current = { elapsed: anchorElapsed, at: Date.now() };
+      setDisplayElapsed(anchorElapsed);
+    }
+  }, [anchorElapsed, serverCurrentLevel]);
+
+  // Tick mỗi giây: tính elapsed từ timestamp thực.
+  useEffect(() => {
+    if (isPaused) return undefined;
+
+    const tick = () => {
+      const { elapsed, at } = anchorRef.current;
+      setDisplayElapsed(elapsed + Math.floor((Date.now() - at) / 1000));
+    };
+
+    tick();
+    const interval = setInterval(tick, 1000);
+
+    return () => clearInterval(interval);
+  }, [isPaused]);
+
+  // Khi tab quay lại foreground → tính lại ngay + gọi thẳng API lấy elapsed chuẩn.
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (!tourId) return;
+
+      const { elapsed, at } = anchorRef.current;
+      setDisplayElapsed(elapsed + Math.floor((Date.now() - at) / 1000));
+
+      tourService.getTourControl(tourId).then((res: unknown) => {
+        const data: TourControlData | null = (res as any)?.data ?? res;
+        if (data?.elapsedSeconds != null) {
+          anchorRef.current = { elapsed: data.elapsedSeconds, at: Date.now() };
+          setDisplayElapsed(data.elapsedSeconds);
+        }
+      }).catch(() => {
+        // Bỏ qua lỗi.
+      });
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tourId]);
+
+  // ---- Build rows ----
   const rows = useMemo<TimerRow[]>(() => {
     // ---- Compute current / next level info ----
     const currentLevelIdx = control?.currentLevel;
@@ -41,10 +129,16 @@ export function TournamentTourTimer({ tournament, control, levels = [], levelsLo
     const currentIsBreak = currentLevelObj?.type === 'BREAK';
     const nextIsBreak = nextLevelObj?.type === 'BREAK';
 
-    const currentBlindNumber = currentLevelObj ? getBlindLevelNumber(currentLevelObj, levels) : null;
+    const currentBlindNumber = currentLevelObj
+      ? getBlindLevelNumber(currentLevelObj, levels)
+      : null;
     const nextBlindNumber = nextLevelObj ? getBlindLevelNumber(nextLevelObj, levels) : null;
 
-    const currentLabel = currentIsBreak ? 'Break' : currentBlindNumber != null ? `Level ${currentBlindNumber}` : '—';
+    const currentLabel = currentIsBreak
+      ? 'Break'
+      : currentBlindNumber != null
+        ? `Level ${currentBlindNumber}`
+        : '—';
     const nextLabel = nextLevelObj
       ? nextIsBreak
         ? 'Break'
@@ -53,11 +147,21 @@ export function TournamentTourTimer({ tournament, control, levels = [], levelsLo
           : '—'
       : '—';
 
-    const currentBlindsStr = currentLevelObj && !currentIsBreak ? formatBlinds(currentLevelObj) : '';
+    const currentBlindsStr =
+      currentLevelObj && !currentIsBreak ? formatBlinds(currentLevelObj) : '';
     const nextBlindsStr = nextLevelObj && !nextIsBreak ? formatBlinds(nextLevelObj) : '';
 
-    const currentLevelFull = currentBlindsStr ? `${currentLabel} - ${currentBlindsStr}` : currentLabel;
+    const currentLevelFull = currentBlindsStr
+      ? `${currentLabel} - ${currentBlindsStr}`
+      : currentLabel;
     const nextLevelFull = nextBlindsStr ? `${nextLabel} - ${nextBlindsStr}` : nextLabel;
+
+    // ---- Duration / countdown ----
+    const durationMinutes = currentLevelObj?.duration ?? 0;
+    const durationSeconds = durationMinutes * 60;
+    const remaining = Math.max(0, durationSeconds - displayElapsed);
+    const durationDisplay = formatTime(remaining);
+    const totalDisplay = formatTime(durationSeconds);
 
     // ---- Compute entries / chip stats ----
     const entries = control?.entries ?? [];
@@ -82,14 +186,14 @@ export function TournamentTourTimer({ tournament, control, levels = [], levelsLo
     return [
       { label: 'Current Level', value: currentLevelFull },
       { label: 'Next Level', value: nextLevelFull },
-      { label: 'Duration', value: '10:00' },
+      { label: `Remaining (total ${totalDisplay})`, value: durationDisplay },
       { label: 'Entries', value: entriesValue },
       { label: 'Re-buy / Buy-in', value: rebuyBuyinValue },
       { label: 'Chips in play', value: chipsInPlay != null ? chipsInPlay.toLocaleString() : '—' },
       { label: 'Average Stack', value: avgStack },
       { label: 'GTD', value: gtd || '—' },
     ];
-  }, [control, levels, tournament]);
+  }, [control, levels, tournament, displayElapsed]);
 
   if (levelsLoading) {
     return (
@@ -104,7 +208,7 @@ export function TournamentTourTimer({ tournament, control, levels = [], levelsLo
   return (
     <Card sx={{ p: 2.5 }}>
       <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 700 }}>
-        Tour Timer
+        Tour Timer {wsConnected ? '🟢' : '🔴'}
       </Typography>
 
       <Stack spacing={1.5}>

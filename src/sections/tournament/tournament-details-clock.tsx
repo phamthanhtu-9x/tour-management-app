@@ -1,10 +1,9 @@
 import type { ITournamentItem } from 'src/types/tournament';
 import type { TourLevelItemDto } from 'src/services/types';
+import type { ITourState, ITourLevelsPayload } from 'src/types/tour-socket';
 
-import { useCallback, useRef, useMemo } from 'react';
+import { useMemo, useCallback, useRef } from 'react';
 
-import Box from '@mui/material/Box';
-import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 
 import { useBoolean } from 'src/hooks/use-boolean';
@@ -15,124 +14,143 @@ import { Iconify } from 'src/components/iconify';
 
 import { TournamentClockInfo } from './tournament-clock-info';
 import { TournamentClockPrize } from './tournament-clock-prize';
-import { TournamentClockTimer } from './tournament-clock-timer';
+import { TournamentCountdownTimer } from './tournament-countdown-timer';
 import { TournamentClockLayout } from './tournament-clock-layout';
-import {
-  formatBlinds,
-  findNextBlindLevel,
-  findNextLevel,
-  getBlindLevelNumber,
-  blindsLabel,
-} from './tournament-clock-utils';
-import type { ClockTimerData } from './tournament-clock-timer';
 
 // ----------------------------------------------------------------------
 
 type Props = {
   tournament?: ITournamentItem | null;
   loading?: boolean;
+  /** Real-time state từ WebSocket. */
+  tourState?: ITourState | null;
+  /** Real-time levels từ WebSocket. */
+  tourLevels?: ITourLevelsPayload | null;
+  /** WebSocket đã kết nối hay chưa. */
+  wsConnected?: boolean;
 };
 
 // ----------------------------------------------------------------------
 
-export function TournamentDetailsClock({ tournament }: Props) {
+/** Parse GTD "10/5/3/3/1" → { total, ranks } */
+function parseGtd(gtd?: string | null): { total: number; ranks: number[] } | undefined {
+  if (!gtd || gtd === '0' || gtd === '0/0') return undefined;
+  const parts = gtd.split('/').map((s) => Number(s.trim())).filter((n) => !Number.isNaN(n) && n > 0);
+  if (parts.length === 0) return undefined;
+  return {
+    total: parts.reduce((sum, n) => sum + n, 0),
+    ranks: parts,
+  };
+}
+
+// ----------------------------------------------------------------------
+
+export function TournamentDetailsClock({
+  tournament,
+  loading,
+  tourState,
+  tourLevels,
+  wsConnected,
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const fullscreen = useBoolean();
 
-  const { control } = useGetTourControl(tournament?.id);
-  const { levels } = useGetTourLevels(tournament?.id);
+  const { control: restControl } = useGetTourControl(tournament?.id);
+  const { levels: restLevels } = useGetTourLevels(tournament?.id);
 
-  const { activeEntries, totalBuyin, totalReBuys, totalEntries, gtdPrize, clockData } = useMemo(() => {
-    const entries = control?.entries ?? [];
-    const buyin = entries.length;
-    const reBuys = entries.reduce((sum, e) => sum + (e.reBuyCount ?? 0), 0);
+  // ---- Merge socket data với REST data: socket ưu tiên khi connected ----
+  const control = useMemo(() => {
+    if (wsConnected && tourState) {
+      return {
+        currentLevel: tourState.currentLevel,
+        entries: tourState.entries.map((e) => ({
+          name: e.name,
+          avatar: e.avatar,
+          isEliminated: e.isEliminated,
+          reBuyCount: e.reBuyCount,
+        })),
+        gtd: tourState.gtd,
+      };
+    }
+    return restControl;
+  }, [wsConnected, tourState, restControl]);
 
-    // GTD
-    const rawGtd: string = control?.gtd ?? '';
-    const gtdNumbers = rawGtd
-      .split('/')
-      .map((s: string) => Number(s.trim()))
-      .filter((n: number) => !Number.isNaN(n) && n > 0);
-    const gtdTotal = gtdNumbers.reduce((sum: number, n: number) => sum + n, 0);
+  const levels: TourLevelItemDto[] = useMemo(() => {
+    if (wsConnected && tourLevels) {
+      return tourLevels.levels.map((l) => ({
+        name: l.name ?? undefined,
+        type: l.type,
+        idx: l.idx,
+        duration: l.duration,
+        smallBlind: l.smallBlind ?? undefined,
+        bigBlind: l.bigBlind ?? undefined,
+        ante: l.ante ?? undefined,
+      })) as TourLevelItemDto[];
+    }
+    return restLevels;
+  }, [wsConnected, tourLevels, restLevels]);
 
-    // ---- Build clock data from control + levels ----
-    const currentLevelIdx = control?.currentLevel;
-    const currentLevelObj = levels.find((l) => l.idx === currentLevelIdx);
-    const nextBlindLevelObj = currentLevelIdx ? findNextBlindLevel(levels, currentLevelIdx) : null;
-    const nextLevelObj = currentLevelIdx ? findNextLevel(levels, currentLevelIdx) : null;
+  // ---- Derived stats cho ClockInfo ----
+  const entries = control?.entries ?? [];
+  const buyin = entries.length;
+  const totalReBuys = entries.reduce((sum, e) => sum + (e.reBuyCount ?? 0), 0);
+  const totalEntries = buyin + totalReBuys;
+  const activeEntries = entries.filter((e) => !e.isEliminated).length;
 
-    const currentIsBreak = currentLevelObj?.type === 'BREAK';
+  // ---- GTD prize ----
+  const gtdPrize = parseGtd(control?.gtd);
 
-    const currentBlindNumber = currentLevelObj ? getBlindLevelNumber(currentLevelObj, levels) : null;
-    const nextBlindNumber = nextLevelObj ? getBlindLevelNumber(nextLevelObj, levels) : null;
-    const nextIsBreak = nextLevelObj?.type === 'BREAK';
-
-    const builtClock: ClockTimerData = {
-      level: currentIsBreak || currentBlindNumber === null ? '—' : currentBlindNumber,
-      time: '10:00', // placeholder – countdown nằm ngoài scope lần này
-      blinds: currentLevelObj ? blindsLabel(currentLevelObj) : '—',
-      nextLevel: nextLevelObj
-        ? nextIsBreak
-          ? 'Break'
-          : nextBlindNumber ?? '—'
-        : '—',
-      nextBlinds: nextIsBreak ? '' : (nextBlindLevelObj ? formatBlinds(nextBlindLevelObj) : '—'),
-      isBreak: currentIsBreak,
-      isNextBreak: nextIsBreak,
-    };
-
-    return {
-      activeEntries: entries.filter((e) => !e.isEliminated).length,
-      totalBuyin: buyin,
-      totalReBuys: reBuys,
-      totalEntries: buyin + reBuys,
-      gtdPrize: { total: gtdTotal, ranks: gtdNumbers },
-      clockData: builtClock,
-    };
-  }, [control, levels]);
-
-  const handleToggleFullscreen = useCallback(async () => {
-    if (document.fullscreenElement) {
-      await document.exitFullscreen();
-      fullscreen.onFalse();
-    } else if (containerRef.current) {
-      await containerRef.current.requestFullscreen();
+  // ---- Fullscreen handler ----
+  const handleToggleFullscreen = useCallback(() => {
+    if (!fullscreen.value) {
+      containerRef.current?.requestFullscreen?.().catch(() => {});
       fullscreen.onTrue();
+    } else {
+      document.exitFullscreen?.().catch(() => {});
+      fullscreen.onFalse();
     }
   }, [fullscreen]);
 
-  const renderTopCenter = (
-    <Box>
-      <Typography sx={{ textTransform: 'uppercase', fontSize: '2.5cqw', fontWeight: 700, lineHeight: 1.2 }}>
-        {tournament?.title || '—'}
-      </Typography>
-    </Box>
-  );
-
-  const renderTopRight = (
-    <IconButton onClick={handleToggleFullscreen} sx={{ color: '#fff' }}>
-      <Iconify
-        icon={'solar:full-screen-linear'}
-        width={24}
-      />
-    </IconButton>
-  );
-
   return (
-    <Box
-      ref={containerRef}
-      sx={{
-        ...(fullscreen.value && { height: '100%' }),
-      }}
-    >
-      <TournamentClockLayout
-        topCenter={renderTopCenter}
-        topRight={renderTopRight}
-        left={<TournamentClockInfo tournament={tournament} activeEntries={activeEntries} totalEntries={totalEntries} totalBuyin={totalBuyin} totalReBuys={totalReBuys} />}
-        center={<TournamentClockTimer data={clockData} />}
-        right={<TournamentClockPrize gtdPrize={gtdPrize} />}
-        fullscreen={fullscreen.value}
-      />
-    </Box>
+    <TournamentClockLayout
+      fullscreen={fullscreen.value}
+      topCenter={
+        <Typography
+          sx={{
+            fontSize: '3cqw',
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            lineHeight: 1.1,
+          }}
+        >
+          {tournament?.title ?? 'Tournament'}
+        </Typography>
+      }
+      topRight={
+        <Iconify
+          icon={fullscreen.value ? 'solar:quit-full-screen-bold' : 'solar:full-screen-bold'}
+          onClick={handleToggleFullscreen}
+          sx={{ cursor: 'pointer', fontSize: '3cqw' }}
+        />
+      }
+      left={
+        <TournamentClockInfo
+          tournament={tournament}
+          activeEntries={activeEntries}
+          totalEntries={totalEntries}
+          totalBuyin={buyin}
+          totalReBuys={totalReBuys}
+        />
+      }
+      center={
+        <TournamentCountdownTimer
+          tourState={tourState}
+          levels={levels}
+          restControl={restControl}
+          tourId={tournament?.id}
+        />
+      }
+      right={<TournamentClockPrize gtdPrize={gtdPrize} />}
+    />
   );
 }

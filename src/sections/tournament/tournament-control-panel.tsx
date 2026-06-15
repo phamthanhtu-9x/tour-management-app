@@ -1,4 +1,5 @@
 import type { TourLevelItemDto } from 'src/services/types';
+import type { ITourState } from 'src/types/tour-socket';
 
 import { useState, useCallback } from 'react';
 
@@ -25,22 +26,46 @@ type Props = {
   /** Clock có đang chạy không: running = true, paused/chưa start = false */
   isRunning: boolean;
   controlMutate: () => void;
+  /** Real-time tour state từ WebSocket (để biết isPaused). */
+  tourState?: ITourState | null;
+  /** WebSocket đã kết nối hay chưa. */
+  wsConnected?: boolean;
 };
 
 // ----------------------------------------------------------------------
 
-export function TournamentControlPanel({ id, levels, isRunning, controlMutate }: Props) {
+export function TournamentControlPanel({
+  id,
+  levels,
+  isRunning,
+  controlMutate,
+  tourState,
+  wsConnected,
+}: Props) {
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
 
   const confirmReset = useBoolean();
   const setLevelDialog = useBoolean();
+
+  // ---- Phân biệt 3 trạng thái từ 2 cờ độc lập của server ----
+  // started: tour đã được start (chưa reset)
+  // paused:  tour đang tạm dừng
+  // ticking: tour đang chạy thực sự (started && !paused)
+  const hasSocket = !!(wsConnected && tourState);
+  const started = hasSocket ? !!tourState!.isRunning : isRunning;
+  const paused = hasSocket ? !!tourState!.isPaused : !isRunning;
+  const ticking = started && !paused;
 
   const runAction = useCallback(
     async (name: string, fn: () => Promise<unknown>) => {
       setLoadingAction(name);
       try {
         await fn();
-        controlMutate();
+        // Không cần gọi controlMutate ngay vì WebSocket sẽ push tour-state mới.
+        // Vẫn gọi để fallback REST nếu socket chưa connected.
+        if (!wsConnected) {
+          controlMutate();
+        }
         toast.success('Done!');
         return true;
       } catch (error) {
@@ -51,7 +76,7 @@ export function TournamentControlPanel({ id, levels, isRunning, controlMutate }:
         setLoadingAction(null);
       }
     },
-    [controlMutate]
+    [controlMutate, wsConnected]
   );
 
   const isBusy = loadingAction !== null;
@@ -62,7 +87,8 @@ export function TournamentControlPanel({ id, levels, isRunning, controlMutate }:
       label: 'Start',
       icon: 'solar:play-bold',
       color: 'success' as const,
-      disabled: isRunning,
+      // Chỉ start được khi tour chưa start.
+      disabled: started,
       onClick: () => runAction('start', () => tourService.startClock(id)),
     },
     {
@@ -70,7 +96,8 @@ export function TournamentControlPanel({ id, levels, isRunning, controlMutate }:
       label: 'Pause',
       icon: 'solar:pause-bold',
       color: 'warning' as const,
-      disabled: !isRunning,
+      // Chỉ pause được khi đang chạy.
+      disabled: !ticking,
       onClick: () => runAction('pause', () => tourService.pauseClock(id)),
     },
     {
@@ -78,7 +105,8 @@ export function TournamentControlPanel({ id, levels, isRunning, controlMutate }:
       label: 'Resume',
       icon: 'solar:play-circle-bold',
       color: 'success' as const,
-      disabled: !isRunning,
+      // Chỉ resume được khi đã start và đang pause.
+      disabled: !(started && paused),
       onClick: () => runAction('resume', () => tourService.resumeClock(id)),
     },
     {
@@ -86,7 +114,8 @@ export function TournamentControlPanel({ id, levels, isRunning, controlMutate }:
       label: 'Prev',
       icon: 'solar:rewind-back-bold',
       color: 'inherit' as const,
-      disabled: !isRunning,
+      // Đổi level được khi tour đã start (kể cả đang pause).
+      disabled: !started,
       onClick: () => runAction('prev', () => tourService.prevLevel(id)),
     },
     {
@@ -94,7 +123,7 @@ export function TournamentControlPanel({ id, levels, isRunning, controlMutate }:
       label: 'Next',
       icon: 'solar:rewind-forward-bold',
       color: 'inherit' as const,
-      disabled: !isRunning,
+      disabled: !started,
       onClick: () => runAction('next', () => tourService.nextLevel(id)),
     },
     {
@@ -102,7 +131,7 @@ export function TournamentControlPanel({ id, levels, isRunning, controlMutate }:
       label: 'Set level',
       icon: 'solar:list-check-bold',
       color: 'primary' as const,
-      disabled: !isRunning,
+      disabled: !started,
       onClick: () => setLevelDialog.onTrue(),
     },
     {

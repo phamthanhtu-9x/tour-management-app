@@ -10,6 +10,7 @@ import useMediaQuery from '@mui/material/useMediaQuery';
 import { paths } from 'src/routes/paths';
 
 import { useTabs } from 'src/hooks/use-tabs';
+import { useTourSocket } from 'src/hooks/use-tour-socket';
 
 import { useGetTournament } from 'src/actions/tournament';
 
@@ -45,6 +46,9 @@ export function TournamentDetailsView({ id }: Props) {
 
   const { tournament, tournamentLoading, tournamentMutate } = useGetTournament(id);
 
+  // ---- WebSocket: real-time tour-state + tour-levels ----
+  const { tourState, tourLevels, connected } = useTourSocket(id);
+
   // ---- On mobile: hide Clock tab, auto-switch to Control ----
   useEffect(() => {
     if (isMobile && tabs.value === 'clock') {
@@ -53,7 +57,10 @@ export function TournamentDetailsView({ id }: Props) {
   }, [isMobile, tabs]);
 
   const visibleTabs = useMemo(
-    () => (isMobile ? TOURNAMENT_DETAILS_TABS.filter((t) => t.value !== 'clock') : TOURNAMENT_DETAILS_TABS),
+    () =>
+      isMobile
+        ? TOURNAMENT_DETAILS_TABS.filter((t) => t.value !== 'clock')
+        : TOURNAMENT_DETAILS_TABS,
     [isMobile]
   );
 
@@ -80,7 +87,13 @@ export function TournamentDetailsView({ id }: Props) {
       {renderTabs}
 
       {!isMobile && tabs.value === 'clock' && (
-        <TournamentDetailsClock tournament={tournament} loading={tournamentLoading} />
+        <TournamentDetailsClock
+          tournament={tournament}
+          loading={tournamentLoading}
+          tourState={tourState}
+          tourLevels={tourLevels}
+          wsConnected={connected}
+        />
       )}
 
       {tabs.value === 'control' && (
@@ -89,6 +102,9 @@ export function TournamentDetailsView({ id }: Props) {
           tournament={tournament}
           tournamentMutate={tournamentMutate}
           tournamentLoading={tournamentLoading}
+          tourState={tourState}
+          tourLevels={tourLevels}
+          wsConnected={connected}
         />
       )}
 
