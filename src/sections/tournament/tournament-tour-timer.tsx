@@ -114,6 +114,10 @@ export function TournamentTourTimer({
   useEffect(() => {
     if (isPaused) return undefined;
 
+    // Re-anchor at thành Date.now() mỗi lần tick bắt đầu (sau pause/resume),
+    // để không tính khoảng thời gian đã pause vào elapsed.
+    anchorRef.current = { ...anchorRef.current, at: Date.now() };
+
     const tick = () => {
       const { elapsed, at } = anchorRef.current;
       setDisplayElapsed(elapsed + Math.floor((Date.now() - at) / 1000));

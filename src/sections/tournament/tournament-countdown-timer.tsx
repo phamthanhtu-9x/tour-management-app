@@ -151,6 +151,10 @@ export function TournamentCountdownTimer({
   useEffect(() => {
     if (!isRunning || isPaused) return undefined;
 
+    // Re-anchor at thành Date.now() mỗi lần tick bắt đầu (sau pause/resume),
+    // để không tính khoảng thời gian đã pause vào elapsed.
+    anchorRef.current = { ...anchorRef.current, at: Date.now() };
+
     const tick = () => {
       const { elapsed, at } = anchorRef.current;
       const realElapsed = elapsed + Math.floor((Date.now() - at) / 1000);
