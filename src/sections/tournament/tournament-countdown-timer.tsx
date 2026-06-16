@@ -305,14 +305,15 @@ export function TournamentCountdownTimer({
           {clockData.isBreak ? 'Break' : `Level ${clockData.level}`}
         </Typography>
 
-        {/* Timer */}
+        {/* Timer — tabular-nums giúp chữ số đều chiều rộng, không nhảy khi đếm */}
         <Typography
           sx={{
             fontWeight: 700,
             lineHeight: 0.9,
-            fontSize: '21cqw',
+            fontSize: '20cqw',
             mb: '1cqw',
-            width: '57cqw'
+            width: '57cqw',
+            fontVariantNumeric: 'tabular-nums',
           }}
         >
           {clockData.time}

@@ -272,6 +272,7 @@ export function TournamentTourTimer({
               justifyContent: 'space-between',
               alignItems: 'center',
               gap: 2,
+              fontVariantNumeric: 'tabular-nums',
             }}
           >
             <Typography

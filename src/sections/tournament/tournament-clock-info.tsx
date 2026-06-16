@@ -68,7 +68,9 @@ export function TournamentClockInfo({
             {row.label}
           </Typography>
           <Typography
-            sx={{ fontSize: '2cqw', fontWeight: 700, lineHeight: 1.2 }}
+            sx={{ fontSize: '2cqw', fontWeight: 700, lineHeight: 1.2,
+              fontVariantNumeric: 'tabular-nums',
+             }}
           >
             {row.value}
           </Typography>
