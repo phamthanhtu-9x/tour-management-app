@@ -161,7 +161,7 @@ export function TournamentDetailsPlayer({ id, tourState, wsConnected }: Props) {
           </Button>
         </Box>
 
-        <Card>
+        <Card sx={{ overflowX: 'auto' }}>
           {controlLoading ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
               <CircularProgress size={32} />
