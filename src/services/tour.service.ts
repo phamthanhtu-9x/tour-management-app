@@ -65,6 +65,14 @@ export const tourService = {
   resetClock: (id: number) =>
     apiClient.patch(`/tours/${id}/control/reset`).then((res) => res.data),
 
+  /** PATCH /tours/{id}/control/forward — Tua tới 5 giây trong level hiện tại */
+  forwardTime: (id: number) =>
+    apiClient.patch(`/tours/${id}/control/forward`).then((res) => res.data),
+
+  /** PATCH /tours/{id}/control/rewind — Tua lùi 5 giây trong level hiện tại */
+  rewindTime: (id: number) =>
+    apiClient.patch(`/tours/${id}/control/rewind`).then((res) => res.data),
+
   /** PATCH /tours/{id}/control/entries — Cập nhật danh sách entries (người chơi) */
   updateEntries: (id: number, body: UpdateEntriesDto) =>
     apiClient.patch(`/tours/${id}/control/entries`, body).then((res) => res.data),

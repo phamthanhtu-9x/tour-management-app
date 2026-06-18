@@ -127,6 +127,22 @@ export function TournamentControlPanel({
       onClick: () => runAction('next', () => tourService.nextLevel(id)),
     },
     {
+      key: 'forward',
+      label: '+5s',
+      icon: 'solar:skip-forward-bold',
+      color: 'primary' as const,
+      disabled: !started,
+      onClick: () => runAction('forward', () => tourService.forwardTime(id)),
+    },
+    {
+      key: 'rewind',
+      label: '-5s',
+      icon: 'solar:skip-back-bold',
+      color: 'primary' as const,
+      disabled: !started,
+      onClick: () => runAction('rewind', () => tourService.rewindTime(id)),
+    },
+    {
       key: 'set-level',
       label: 'Set level',
       icon: 'solar:list-check-bold',
@@ -158,7 +174,7 @@ export function TournamentControlPanel({
             gridTemplateColumns: {
               xs: 'repeat(2, 1fr)',
               sm: 'repeat(4, 1fr)',
-              md: 'repeat(7, 1fr)',
+              md: 'repeat(auto-fill, minmax(120px, 1fr))',
             },
           }}
         >
