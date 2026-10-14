@@ -1,7 +1,7 @@
 'use client';
 
 import type { IPlayerItem } from 'src/types/player';
-import type { TourControlEntry } from 'src/services/types';
+import type { AddEntryDto, TourControlEntry } from 'src/services/types';
 
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useInView } from 'react-intersection-observer';
@@ -34,11 +34,21 @@ function entryKey(entry: TourControlEntry): string | null {
 
 // ----------------------------------------------------------------------
 
+/** Thay đổi từ dialog: ai được thêm, ai bị bỏ, và danh sách đầy đủ (dự phòng PATCH). */
+export type PlayerDialogChanges = {
+  /** Player mới cần thêm (POST /entries). */
+  added: AddEntryDto[];
+  /** Entry hiện có bị bỏ chọn (DELETE /entries/:entryId). */
+  removed: TourControlEntry[];
+  /** Danh sách entries đầy đủ sau thay đổi – chỉ dùng khi phải ghi đè bằng PATCH. */
+  next: TourControlEntry[];
+};
+
 type Props = {
   open: boolean;
   onClose: () => void;
   currentEntries: TourControlEntry[];
-  onSave: (selected: TourControlEntry[]) => Promise<void>;
+  onSave: (changes: PlayerDialogChanges) => Promise<void>;
   /**
    * Cho phép thêm player mới (chưa có trong tour) hay không.
    * false khi đăng ký đã đóng: vẫn bỏ chọn được player hiện có, nhưng không thêm mới.
@@ -160,6 +170,8 @@ export function TournamentPlayerDialog({
     setSaving(true);
     try {
       const updated: TourControlEntry[] = [];
+      const added: AddEntryDto[] = [];
+      const removed: TourControlEntry[] = [];
       const keptPlayerIds = new Set<number>();
 
       // 1. Giữ các entry hiện có còn được chọn (giữ nguyên thứ tự, reBuyCount, isEliminated...).
@@ -172,7 +184,10 @@ export function TournamentPlayerDialog({
           e.playerId == null && e.name ? allPlayers.find((p) => p.name === e.name) : undefined;
         const stillSelected =
           selectedKeys.has(key) || (!!matched && selectedKeys.has(playerKey(matched.id)));
-        if (!stillSelected) return;
+        if (!stillSelected) {
+          removed.push(e);
+          return;
+        }
 
         const entry = matched ? { ...e, playerId: matched.id } : e;
         if (entry.playerId != null) keptPlayerIds.add(entry.playerId);
@@ -185,17 +200,19 @@ export function TournamentPlayerDialog({
         if (!selectedKeys.has(playerKey(player.id))) return;
         if (isInTour(player)) return;
 
-        updated.push({
+        const dto: AddEntryDto = {
           playerId: player.id,
           name: player.name ?? '',
           avatar: player.avatar ?? undefined,
           isEliminated: false,
           reBuyCount: 0,
           addOn: [],
-        });
+        };
+        added.push(dto);
+        updated.push(dto);
       });
 
-      await onSave(updated);
+      await onSave({ added, removed, next: updated });
     } finally {
       setSaving(false);
     }

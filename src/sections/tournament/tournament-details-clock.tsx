@@ -80,6 +80,7 @@ export function TournamentDetailsClock({
       return {
         currentLevel: tourState.currentLevel,
         entries: tourState.entries.map((e) => ({
+          id: e.id,
           playerId: e.playerId,
           name: e.name,
           avatar: e.avatar,

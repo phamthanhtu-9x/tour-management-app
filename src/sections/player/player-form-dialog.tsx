@@ -17,6 +17,7 @@ import DialogContent from '@mui/material/DialogContent';
 import { playerService, uploadService } from 'src/services';
 
 import { fData } from 'src/utils/format-number';
+import { getFileUrl } from 'src/utils/file-url';
 
 import { toast } from 'src/components/snackbar';
 import { Form, Field, schemaHelper } from 'src/components/hook-form';
@@ -50,7 +51,8 @@ export function PlayerFormDialog({ open, onClose, currentPlayer, onSuccess }: Pr
   const defaultValues = useMemo(
     () => ({
       name: currentPlayer?.name || '',
-      avatar: currentPlayer?.avatar || null,
+      // Avatar lưu dạng đường dẫn tương đối ("uploads/abc.jpg") → ghép server URL để preview hiển thị được.
+      avatar: getFileUrl(currentPlayer?.avatar) || null,
       point: currentPlayer?.point ?? 0,
     }),
     [currentPlayer]
@@ -82,7 +84,8 @@ export function PlayerFormDialog({ open, onClose, currentPlayer, onSuccess }: Pr
         // Response envelope: { statusCode, message, data: { path, filename, ... } }
         avatarUrl = uploaded?.data?.path ?? uploaded?.path;
       } else if (typeof data.avatar === 'string') {
-        avatarUrl = data.avatar;
+        // Không đổi ảnh → gửi lại đường dẫn gốc (tương đối), không gửi URL đầy đủ dùng để preview.
+        avatarUrl = currentPlayer?.avatar ?? data.avatar;
       }
 
       const body = { name: data.name, avatar: avatarUrl, point: data.point ?? 0 };

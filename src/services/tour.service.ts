@@ -1,4 +1,5 @@
 import type {
+  AddEntryDto,
   SetLevelDto,
   InsertTourDto,
   UpdateTourDto,
@@ -73,9 +74,42 @@ export const tourService = {
   rewindTime: (id: number) =>
     apiClient.patch(`/tours/${id}/control/rewind`).then((res) => res.data),
 
-  /** PATCH /tours/{id}/control/entries — Cập nhật danh sách entries (người chơi) */
+  /**
+   * PATCH /tours/{id}/control/entries — Ghi đè toàn bộ entries (log BULK_UPDATE).
+   * PHẢI gửi kèm `id` của entry đang có, nếu không server coi là entry mới.
+   * Thêm / xoá / rebuy hãy dùng addEntry / removeEntry / rebuyEntry.
+   */
   updateEntries: (id: number, body: UpdateEntriesDto) =>
     apiClient.patch(`/tours/${id}/control/entries`, body).then((res) => res.data),
+
+  // ------------------------------- Entries (có log + undo) -------------------------------
+
+  /** POST /tours/{id}/control/entries — Thêm một entry (ghi log ADD) */
+  addEntry: (id: number, body: AddEntryDto) =>
+    apiClient.post(`/tours/${id}/control/entries`, body).then((res) => res.data),
+
+  /** DELETE /tours/{id}/control/entries/{entryId} — Xoá một entry (ghi log REMOVE) */
+  removeEntry: (id: number, entryId: string) =>
+    apiClient.delete(`/tours/${id}/control/entries/${entryId}`).then((res) => res.data),
+
+  /** POST /tours/{id}/control/entries/{entryId}/rebuy — Rebuy: +1 reBuyCount (ghi log REBUY) */
+  rebuyEntry: (id: number, entryId: string) =>
+    apiClient.post(`/tours/${id}/control/entries/${entryId}/rebuy`).then((res) => res.data),
+
+  /** POST /tours/{id}/control/entries/undo — Hoàn tác thao tác entries gần nhất chưa hoàn tác */
+  undoEntries: (id: number) =>
+    apiClient.post(`/tours/${id}/control/entries/undo`).then((res) => res.data),
+
+  /**
+   * POST /tours/{id}/control/entries/logs/{logId}/undo — Hoàn tác đúng một log.
+   * 409 + details.blockingLogIds nếu còn thao tác phía sau phụ thuộc chưa hoàn tác.
+   */
+  undoEntryLog: (id: number, logId: number) =>
+    apiClient.post(`/tours/${id}/control/entries/logs/${logId}/undo`).then((res) => res.data),
+
+  /** GET /tours/{id}/control/entries/logs — Log thao tác entries (mới nhất trước) */
+  getEntryLogs: (id: number) =>
+    apiClient.get(`/tours/${id}/control/entries/logs`).then((res) => res.data),
 
   /** PATCH /tours/{id}/control/gtd — Cập nhật chuỗi GTD (giải thưởng) của control */
   updateGtd: (id: number, body: UpdateGtdDto) =>

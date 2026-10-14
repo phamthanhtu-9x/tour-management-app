@@ -1,6 +1,6 @@
 # Entries: Thêm / Xoá / Rebuy + Log & Undo – Tài liệu tích hợp Frontend
 
-Tài liệu này mô tả cách frontend thao tác danh sách người chơi (entries) của một tour, hiển thị **log thao tác** real-time và **hoàn tác (undo)**.
+Tài liệu này mô tả cách frontend thao tác danh sách người chơi (entries) của một tour, hiển thị **log thao tác** real-time và **hoàn tác (undo)** – hoàn tác thao tác gần nhất hoặc **hoàn tác từng log riêng lẻ**.
 
 > Đọc kèm [`TOUR_WEBSOCKET.md`](./TOUR_WEBSOCKET.md) cho phần kết nối Socket.IO, `join-tour` và event `tour-state`.
 
@@ -13,16 +13,18 @@ Tài liệu này mô tả cách frontend thao tác danh sách người chơi (en
 | Thêm người chơi | `POST /tours/:id/control/entries` | `tour-state` + `tour-log` (`created`) |
 | Xoá người chơi | `DELETE /tours/:id/control/entries/:entryId` | `tour-state` + `tour-log` (`created`) |
 | Rebuy (+1 `reBuyCount`) | `POST /tours/:id/control/entries/:entryId/rebuy` | `tour-state` + `tour-log` (`created`) |
-| Hoàn tác thao tác gần nhất | `POST /tours/:id/control/entries/undo` | `tour-state` + `tour-log` (`undone`) |
+| Hoàn tác thao tác **gần nhất** | `POST /tours/:id/control/entries/undo` | `tour-state` + `tour-log` (`undone`) |
+| Hoàn tác **một log cụ thể** | `POST /tours/:id/control/entries/logs/:logId/undo` | `tour-state` + `tour-log` (`undone`) |
 | Lấy toàn bộ log | `GET /tours/:id/control/entries/logs` | – |
 | Reset clock | `PATCH /tours/:id/control/reset` | entries & log bị xoá → `tour-state` + `tour-log` (`reset`) |
 
 Quy tắc vàng:
 
 1. **Mỗi entry có `id` (uuid) do server sinh.** Dùng `entry.id` để xoá/rebuy. Không tự sinh id ở client.
-2. **Nguồn sự thật là WebSocket.** Sau khi gọi API, *không cần* tự cập nhật state cục bộ – server sẽ đẩy `tour-state` (entries mới) và `tour-log` tới **mọi thiết bị** đang xem tour, kể cả thiết bị vừa gọi API.
-3. **Undo theo kiểu ngăn xếp (Ctrl+Z):** mỗi lần undo hoàn tác thao tác gần nhất *chưa được undo*. Bấm nhiều lần để lùi nhiều bước. **Không có redo.**
-4. **Reset clock xoá sạch log** – sau reset không undo được nữa.
+2. **Nguồn sự thật là WebSocket.** Sau khi gọi API, *không cần* tự cập nhật state cục bộ – server đẩy `tour-state` (entries mới) và `tour-log` tới **mọi thiết bị** đang xem tour, kể cả thiết bị vừa gọi API.
+3. **Hoàn tác = làm thao tác ngược trên danh sách hiện tại**, không phải quay ngược thời gian: hoàn tác một log cũ **không** làm mất các thao tác khác xảy ra sau nó.
+4. **Server cho biết log nào hoàn tác được:** mọi event `tour-log` đều kèm `undoableLogIds`. Chỉ bật nút "Hoàn tác" trên dòng log có `id` nằm trong danh sách này. Không cần tự tính luật.
+5. **Không có redo.** Reset clock xoá sạch log – sau reset không hoàn tác được nữa.
 
 ---
 
@@ -37,7 +39,12 @@ Quy tắc vàng:
   → dữ liệu thật nằm trong `data`.
 - Response lỗi:
   ```json
-  { "statusCode": 409, "timestamp": "...", "message": "Danh sách entries đã thay đổi, không thể hoàn tác. Vui lòng tải lại", "details": ... }
+  {
+    "statusCode": 409,
+    "timestamp": "2026-10-15T00:10:00.000Z",
+    "message": "Cần hoàn tác các thao tác phía sau trên \"An\" trước",
+    "details": { "blockingLogIds": [4, 5] }
+  }
   ```
 
 ---
@@ -68,23 +75,31 @@ export interface EntryLogItem {
   entryId: string | null;     // null với BULK_UPDATE
   entryName: string | null;   // tên entry tại thời điểm thao tác
   createdAt: string;          // ISO date
-  undoneAt: string | null;    // khác null = đã được undo
+  undoneAt: string | null;    // khác null = đã được hoàn tác
+}
+
+/** Trạng thái hoàn tác – có trong mọi event `tour-log`, response undo và GET logs */
+export interface UndoState {
+  /** Còn thao tác chưa hoàn tác (dùng cho nút "Hoàn tác gần nhất") */
+  canUndo: boolean;
+  /** Id các log hiện có thể hoàn tác riêng lẻ (mới nhất trước) */
+  undoableLogIds: number[];
 }
 
 // ===== Event `tour-log` (WebSocket) =====
 export type TourLogEvent =
-  | { tourId: number; type: 'snapshot'; logs: EntryLogItem[]; canUndo: boolean }
-  | { tourId: number; type: 'created';  log: EntryLogItem;   canUndo: boolean }
-  | { tourId: number; type: 'undone';   log: EntryLogItem;   canUndo: boolean }
-  | { tourId: number; type: 'reset';    canUndo: false };
+  | ({ tourId: number; type: 'snapshot'; logs: EntryLogItem[] } & UndoState)
+  | ({ tourId: number; type: 'created';  log: EntryLogItem }    & UndoState)
+  | ({ tourId: number; type: 'undone';   log: EntryLogItem }    & UndoState)
+  | ({ tourId: number; type: 'reset' }                          & UndoState); // reset: canUndo=false, undoableLogIds=[]
 ```
 
-| `action` | Ý nghĩa | Gợi ý hiển thị |
-|---|---|---|
-| `ADD` | Thêm entry | "Đã thêm **{entryName}**" |
-| `REMOVE` | Xoá entry | "Đã xoá **{entryName}**" |
-| `REBUY` | Rebuy (+1) | "**{entryName}** rebuy" |
-| `BULK_UPDATE` | Cập nhật cả danh sách qua `PATCH` cũ | "Cập nhật danh sách người chơi" |
+| `action` | Ý nghĩa | Gợi ý hiển thị | Hoàn tác sẽ… |
+|---|---|---|---|
+| `ADD` | Thêm entry | "Đã thêm **{entryName}**" | Xoá entry đó |
+| `REMOVE` | Xoá entry | "Đã xoá **{entryName}**" | Thêm lại entry (cùng `id`, cùng dữ liệu) vào gần vị trí cũ |
+| `REBUY` | Rebuy (+1) | "**{entryName}** rebuy" | Giảm `reBuyCount` của entry đi 1 |
+| `BULK_UPDATE` | Cập nhật cả danh sách qua `PATCH` | "Cập nhật danh sách người chơi" | Khôi phục toàn bộ danh sách như trước lần cập nhật |
 
 Log có `undoneAt != null` nên hiển thị mờ / gạch ngang kèm nhãn "Đã hoàn tác".
 
@@ -151,26 +166,57 @@ Response `data`: `{ "entry": { ...reBuyCount mới }, "entries": [...], "log": {
 
 Lỗi giống mục 4.2.
 
-### 4.4. Undo
+### 4.4. Hoàn tác
 
-`POST /tours/:id/control/entries/undo` → `200` (không cần body)
+Có 2 API, cùng cơ chế, cùng dạng response:
 
-Hoàn tác thao tác **gần nhất chưa được undo**: entries được khôi phục **y hệt** trước thao tác đó (kể cả vị trí và `id` của entry bị xoá).
+| API | Hoàn tác |
+|---|---|
+| `POST /tours/:id/control/entries/undo` | Thao tác **gần nhất chưa được hoàn tác** (nút "Hoàn tác" chung / Ctrl+Z) |
+| `POST /tours/:id/control/entries/logs/:logId/undo` | **Đúng log `logId`** (nút "Hoàn tác" trên từng dòng log) |
 
-Response `data`:
+Không cần body. Response `200`, `data`:
 
 ```json
 {
   "entries": [ /* entries sau khi hoàn tác */ ],
-  "log": { "id": 12, "action": "ADD", "entryName": "Nguyễn Văn A", "undoneAt": "2026-10-14T16:45:00.000Z", ... },
-  "canUndo": true
+  "log": { "id": 12, "action": "ADD", "entryName": "Nguyễn Văn A", "undoneAt": "2026-10-15T00:10:00.000Z", ... },
+  "canUndo": true,
+  "undoableLogIds": [15, 14, 11]
 }
 ```
 
+#### Khi nào một log hoàn tác được?
+
+Một log **bị chặn** nếu phía sau nó còn log **chưa hoàn tác** phụ thuộc vào nó:
+
+| Log muốn hoàn tác | Bị chặn bởi log phía sau (chưa hoàn tác) |
+|---|---|
+| `ADD` / `REMOVE` / `REBUY` của entry X | Bất kỳ thao tác nào khác trên **cùng entry X**, *trừ* REBUY sau REBUY (rebuy độc lập, không chặn nhau) |
+| `ADD` / `REMOVE` / `REBUY` | Bất kỳ `BULK_UPDATE` nào |
+| `BULK_UPDATE` | Bất kỳ log nào (chỉ hoàn tác được khi nó là log mới nhất chưa hoàn tác) |
+
+Thao tác trên **entry khác** không chặn. Ví dụ:
+
+```
+#1 ADD An   #2 ADD Bình   #3 REBUY An   #4 REBUY An   #5 REMOVE Bình
+undoableLogIds = [5, 4, 3]
+- #1 (thêm An) bị chặn bởi #3, #4  → phải hoàn tác 2 lần rebuy trước
+- #2 (thêm Bình) bị chặn bởi #5     → phải hoàn tác việc xoá Bình trước
+- #3 hoàn tác được dù còn #4 (rebuy sau rebuy không chặn)
+```
+
+👉 Frontend **không cần tự tính** bảng trên – chỉ cần dùng `undoableLogIds` từ server.
+
+#### Lỗi
+
 | Lỗi | Khi nào | Frontend nên |
 |---|---|---|
-| `400` "Không còn thao tác nào để hoàn tác" | Hết log để undo (hoặc vừa reset) | Disable nút Undo (dựa vào `canUndo`) |
-| `409` "Danh sách entries đã thay đổi…" | Entries hiện tại không khớp với kết quả của thao tác cần undo (hiếm – xảy ra khi có thay đổi ngoài luồng) | Thông báo và gọi lại `GET /tours/:id/control` + `GET .../entries/logs` |
+| `400` "Không còn thao tác nào để hoàn tác" | `/entries/undo` khi không còn log chưa hoàn tác | Disable nút chung theo `canUndo` |
+| `400` "Thao tác này đã được hoàn tác" | `logId` đã hoàn tác (vd thiết bị khác vừa làm) | Bỏ qua, UI sẽ tự cập nhật qua `tour-log` |
+| `404` "Không tìm thấy log" | `logId` không tồn tại / không thuộc tour (vd vừa reset) | Tải lại log |
+| `409` + `details.blockingLogIds` | Log đang bị chặn (xem bảng trên) | Thông báo `message`; có thể highlight các log trong `blockingLogIds` |
+| `409` (không có `blockingLogIds`) | Không áp dụng được trên trạng thái hiện tại (rất hiếm) | Thông báo và tải lại `GET /tours/:id/control` + `GET .../entries/logs` |
 
 ### 4.5. Lấy log
 
@@ -179,58 +225,60 @@ Response `data`:
 ```json
 {
   "logs": [ /* EntryLogItem[], mới nhất trước */ ],
-  "canUndo": true
+  "canUndo": true,
+  "undoableLogIds": [15, 14, 11]
 }
 ```
 
-Thường **không cần gọi** nếu đã dùng WebSocket (đã có `snapshot` khi `join-tour`). Dùng khi cần tải lại sau lỗi `409` hoặc khi không dùng socket.
+Thường **không cần gọi** nếu đã dùng WebSocket (đã có `snapshot` khi `join-tour`). Dùng khi cần tải lại sau lỗi hoặc khi không dùng socket.
 
 ### 4.6. `PATCH /tours/:id/control/entries` (cũ – vẫn hoạt động)
 
 Ghi đè toàn bộ danh sách. Vẫn được hỗ trợ để tương thích, nhưng:
 
-- Được ghi **một** log `BULK_UPDATE` (không biết cụ thể ai được thêm/xoá).
-- **Phải gửi kèm `id`** của các entry đang có để giữ nguyên id; entry không có `id` sẽ được coi là entry mới và nhận id mới.
+- Được ghi **một** log `BULK_UPDATE` – log này chặn hoàn tác mọi log trước nó cho tới khi chính nó được hoàn tác.
+- **Phải gửi kèm `id`** của các entry đang có để giữ nguyên id; entry không có `id` được coi là entry mới và nhận id mới.
 - Hai entry trùng `id` → `400`.
 
-👉 Với thêm/xoá/rebuy, **hãy dùng API ở mục 4.1–4.3** để có log rõ ràng. Dùng `PATCH` cho các chỉnh sửa khác (đổi tên, `isEliminated`, `addOn`, sắp xếp lại…).
+👉 Với thêm/xoá/rebuy, **hãy dùng API ở mục 4.1–4.3** để có log rõ ràng và hoàn tác từng thao tác được. Chỉ dùng `PATCH` cho các chỉnh sửa khác (đổi tên, `isEliminated`, `addOn`, sắp xếp lại…).
 
 ---
 
 ## 5. WebSocket – event `tour-log`
 
-Server → Client, gửi trong room của tour (cùng room với `tour-state`).
+Server → Client, gửi trong room của tour (cùng room với `tour-state`). **Mọi** event đều kèm `canUndo` và `undoableLogIds` mới nhất.
 
 | `type` | Khi nào | Frontend xử lý |
 |---|---|---|
-| `snapshot` | Ngay sau `join-tour` (và sau reconnect + join lại) | **Thay toàn bộ** danh sách log bằng `logs`; set `canUndo` |
-| `created` | Có thao tác mới (thêm/xoá/rebuy/PATCH) | **Thêm `log` vào đầu** danh sách; set `canUndo` |
-| `undone` | Vừa undo | **Thay** log có cùng `log.id` (giờ có `undoneAt`); set `canUndo` |
-| `reset` | Reset clock | **Xoá sạch** danh sách log; `canUndo = false` |
+| `snapshot` | Ngay sau `join-tour` (và sau reconnect + join lại) | **Thay toàn bộ** danh sách log bằng `logs` |
+| `created` | Có thao tác mới (thêm/xoá/rebuy/PATCH) | **Thêm `log` vào đầu** danh sách |
+| `undone` | Vừa hoàn tác một log | **Thay** log có cùng `log.id` (giờ có `undoneAt`) |
+| `reset` | Reset clock | **Xoá sạch** danh sách log |
+
+Với mọi `type`: cập nhật `canUndo` và `undoableLogIds` từ event.
 
 Thứ tự event sau mỗi thao tác: `tour-state` (entries mới) → `tour-log`.
 
 ### 5.1. Reducer mẫu
 
 ```typescript
-interface LogState {
+interface LogState extends UndoState {
   logs: EntryLogItem[];   // mới nhất trước
-  canUndo: boolean;
 }
 
+export const initialLogState: LogState = { logs: [], canUndo: false, undoableLogIds: [] };
+
 export function logReducer(state: LogState, ev: TourLogEvent): LogState {
+  const undo = { canUndo: ev.canUndo, undoableLogIds: ev.undoableLogIds };
   switch (ev.type) {
     case 'snapshot':
-      return { logs: ev.logs, canUndo: ev.canUndo };
+      return { logs: ev.logs, ...undo };
     case 'created':
-      return { logs: [ev.log, ...state.logs], canUndo: ev.canUndo };
+      return { logs: [ev.log, ...state.logs], ...undo };
     case 'undone':
-      return {
-        logs: state.logs.map((l) => (l.id === ev.log.id ? ev.log : l)),
-        canUndo: ev.canUndo,
-      };
+      return { logs: state.logs.map((l) => (l.id === ev.log.id ? ev.log : l)), ...undo };
     case 'reset':
-      return { logs: [], canUndo: false };
+      return { logs: [], ...undo };
   }
 }
 ```
@@ -242,7 +290,7 @@ import { useEffect, useReducer } from 'react';
 import type { Socket } from 'socket.io-client';
 
 export function useTourLog(socket: Socket | null, tourId: number) {
-  const [state, dispatch] = useReducer(logReducer, { logs: [], canUndo: false });
+  const [state, dispatch] = useReducer(logReducer, initialLogState);
 
   useEffect(() => {
     if (!socket) return;
@@ -255,13 +303,13 @@ export function useTourLog(socket: Socket | null, tourId: number) {
     };
   }, [socket, tourId]);
 
-  return state; // { logs, canUndo }
+  return state; // { logs, canUndo, undoableLogIds }
 }
 ```
 
 > Đăng ký listener `tour-log` **trước** khi emit `join-tour` để không lỡ event `snapshot`.
 
-### 5.3. Gọi API từ UI
+### 5.3. Gọi API
 
 ```typescript
 const api = (path: string, init?: RequestInit) =>
@@ -270,38 +318,79 @@ const api = (path: string, init?: RequestInit) =>
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
   }).then(async (res) => {
     const body = await res.json();
-    if (!res.ok) throw Object.assign(new Error(body.message), { status: res.status });
+    if (!res.ok) {
+      throw Object.assign(new Error(body.message), { status: res.status, details: body.details });
+    }
     return body.data;
   });
 
-export const addEntry   = (dto: { name: string; playerId?: number; avatar?: string; addOn?: number[] }) =>
+export const addEntry    = (dto: { name: string; playerId?: number; avatar?: string; addOn?: number[] }) =>
   api('', { method: 'POST', body: JSON.stringify(dto) });
 export const removeEntry = (entryId: string) => api(`/${entryId}`, { method: 'DELETE' });
 export const rebuyEntry  = (entryId: string) => api(`/${entryId}/rebuy`, { method: 'POST' });
-export const undo        = () => api('/undo', { method: 'POST' });
+export const undoLatest  = () => api('/undo', { method: 'POST' });
+export const undoLog     = (logId: number) => api(`/logs/${logId}/undo`, { method: 'POST' });
 export const getLogs     = () => api('/logs');
 ```
 
-Ví dụ nút Undo:
+### 5.4. UI mẫu: danh sách log có nút hoàn tác từng dòng
 
 ```tsx
-<button
-  disabled={!canUndo || pending}
-  onClick={async () => {
-    try {
-      await undo();               // UI tự cập nhật qua tour-state + tour-log
-    } catch (e: any) {
-      if (e.status === 409) {
-        toast('Danh sách đã thay đổi, đang tải lại…');
-        await reloadControlAndLogs();
-      } else {
-        toast(e.message);
-      }
+function EntryLogList({ logs, undoableLogIds, canUndo }: LogState) {
+  const [highlight, setHighlight] = useState<number[]>([]);
+
+  const handleError = async (e: any) => {
+    if (e.status === 409 && e.details?.blockingLogIds) {
+      setHighlight(e.details.blockingLogIds);         // tô sáng các log đang chặn
+      toast(e.message);                                // "Cần hoàn tác các thao tác phía sau trên "An" trước"
+    } else if (e.status === 409 || e.status === 404) {
+      toast('Dữ liệu đã thay đổi, đang tải lại…');
+      await reloadControlAndLogs();
+    } else {
+      toast(e.message);
     }
-  }}
->
-  Hoàn tác
-</button>
+  };
+
+  return (
+    <>
+      <button disabled={!canUndo} onClick={() => undoLatest().catch(handleError)}>
+        Hoàn tác gần nhất
+      </button>
+
+      <ul>
+        {logs.map((log) => (
+          <li
+            key={log.id}
+            className={[log.undoneAt && 'undone', highlight.includes(log.id) && 'blocking']
+              .filter(Boolean)
+              .join(' ')}
+          >
+            {describe(log)}
+            {log.undoneAt ? (
+              <span>Đã hoàn tác</span>
+            ) : (
+              <button
+                disabled={!undoableLogIds.includes(log.id)}
+                title={undoableLogIds.includes(log.id) ? '' : 'Cần hoàn tác các thao tác phía sau trước'}
+                onClick={() => undoLog(log.id).catch(handleError)}
+              >
+                Hoàn tác
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+const describe = (l: EntryLogItem) =>
+  ({
+    ADD: `Đã thêm ${l.entryName}`,
+    REMOVE: `Đã xoá ${l.entryName}`,
+    REBUY: `${l.entryName} rebuy`,
+    BULK_UPDATE: 'Cập nhật danh sách người chơi',
+  })[l.action];
 ```
 
 ---
@@ -311,25 +400,27 @@ Ví dụ nút Undo:
 ```
 Thiết bị A                         Server                          Thiết bị B
     | POST /entries {name:"An"}      |                                 |
-    |------------------------------->| lưu entry + log ADD (1 transaction)
+    |------------------------------->| lưu entry + log #1 ADD (1 transaction)
     |<---- 201 {entry, entries, log} |                                 |
     |<====== tour-state =============|====== tour-state ==============>|
-    |<====== tour-log {created} =====|====== tour-log {created} ======>|
+    |<== tour-log {created, #1} =====|=== tour-log {created, #1} =====>|
     |                                |                                 |
-    |                                |      POST /entries/undo         |
+    |                                |   POST /entries/logs/1/undo     |
     |                                |<--------------------------------|
-    |                                | khôi phục entries, đánh dấu log |
+    |                                | xoá An (thao tác ngược), đánh dấu #1
     |<====== tour-state =============|====== tour-state ==============>|
-    |<====== tour-log {undone} ======|====== tour-log {undone} =======>|
+    |<== tour-log {undone, #1} ======|=== tour-log {undone, #1} ======>|
 ```
 
 ---
 
 ## 7. Lưu ý & Edge cases
 
-- **Nhiều thiết bị thao tác cùng lúc:** server khoá dòng dữ liệu trong transaction nên không mất thao tác (ví dụ 2 thiết bị cùng bấm rebuy → `reBuyCount` tăng 2).
-- **Undo dùng chung cho cả tour**, không theo từng thiết bị/người: undo trên thiết bị B có thể hoàn tác thao tác vừa làm trên thiết bị A.
-- **Thao tác mới sau khi undo:** log đã undo vẫn hiển thị trong lịch sử (có `undoneAt`) nhưng không thể "làm lại"; lần undo kế tiếp hoàn tác thao tác mới nhất.
-- **Entry bị xoá rồi undo** sẽ quay lại đúng vị trí cũ với **cùng `id`** → các tham chiếu theo `id` ở frontend vẫn đúng.
-- **Lỗi validate (400/404)** không tạo log và không thay đổi dữ liệu.
+- **Nhiều thiết bị thao tác cùng lúc:** server khoá dòng dữ liệu trong transaction nên không mất thao tác (vd 2 thiết bị cùng bấm rebuy → `reBuyCount` tăng 2). Trạng thái `undoableLogIds` luôn được đẩy lại sau mỗi thao tác.
+- **Hoàn tác dùng chung cho cả tour**, không theo từng thiết bị/người: thiết bị B có thể hoàn tác thao tác vừa làm trên thiết bị A.
+- **Hoàn tác một log cũ không làm mất thao tác khác:** ví dụ hoàn tác "thêm Cường" chỉ xoá Cường, các rebuy của An sau đó vẫn giữ nguyên.
+- **Entry bị xoá rồi hoàn tác** quay lại với **cùng `id`** và cùng dữ liệu lúc bị xoá, đặt ngay sau entry đứng trước nó (nếu entry đó còn), nếu không thì đặt đầu danh sách.
+- **"Hoàn tác gần nhất"** luôn hoàn tác log mới nhất chưa hoàn tác (log mới nhất không bao giờ bị chặn).
+- **Log đã hoàn tác không thể hoàn tác lại** (không có redo) nhưng vẫn hiển thị trong lịch sử.
+- **Lỗi (400/404/409)** không tạo log và không thay đổi dữ liệu.
 - **Dữ liệu cũ:** các entry tạo trước khi có tính năng này đã được gán `id` tự động khi chạy migration.

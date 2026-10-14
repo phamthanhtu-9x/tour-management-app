@@ -76,6 +76,7 @@ export function TournamentDetailsControl({
           regEnd: tourState.regEnd,
           isRegOpen: tourState.isRegOpen,
           entries: tourState.entries.map((e) => ({
+            id: e.id,
             playerId: e.playerId,
             name: e.name,
             avatar: e.avatar,

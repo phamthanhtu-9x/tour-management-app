@@ -1,3 +1,5 @@
+import type { IUndoState, IEntryLogItem } from 'src/types/tour-socket';
+
 // Types sinh từ swagger.json (Poker Tour Management API)
 // ----------------------------------------------------------------------
 
@@ -67,6 +69,8 @@ export type UserProfile = {
 // ---------------------------------- Tour ----------------------------------
 
 export type TourControlEntry = {
+  /** uuid do server sinh – dùng cho xoá / rebuy. PHẢI giữ nguyên khi ghi lại entries (PATCH). */
+  id?: string;
   /** Id người chơi trong bảng players (không có nếu là khách vãng lai). PHẢI giữ nguyên khi ghi lại entries. */
   playerId?: number;
   name?: string;
@@ -130,6 +134,23 @@ export type UpdateTourDto = {
 export type SetLevelDto = {
   /** Số thứ tự (idx) của level muốn nhảy tới */
   level: number;
+};
+
+/** Body thêm một entry – `POST /tours/:id/control/entries`. */
+export type AddEntryDto = {
+  /** Id người chơi (phải thuộc về user hiện tại). Bỏ trống nếu là khách vãng lai. */
+  playerId?: number;
+  name: string;
+  avatar?: string;
+  isEliminated?: boolean;
+  reBuyCount?: number;
+  /** Số chip của từng lần add-on (số nguyên >= 1). */
+  addOn?: number[];
+};
+
+/** data của `GET /tours/:id/control/entries/logs`. */
+export type EntryLogsData = IUndoState & {
+  logs: IEntryLogItem[];
 };
 
 /** Body cho cập nhật danh sách entries (người chơi) của control */

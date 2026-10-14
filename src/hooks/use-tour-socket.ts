@@ -1,6 +1,8 @@
 import type { Socket } from 'socket.io-client';
 import type {
   ITourState,
+  TourLogEvent,
+  ITourLogState,
   ITourLevelsPayload,
   ITourSocketError,
   TourClientToServerEvents,
@@ -48,6 +50,8 @@ export type TourSocketState = {
   tourState: ITourState | null;
   /** Danh sách level hiện tại (từ event `tour-levels`). */
   tourLevels: ITourLevelsPayload | null;
+  /** Log thao tác entries (event `tour-log`), mới nhất trước. */
+  tourLog: ITourLogState;
   /** Lỗi từ server (event `tour-error`). */
   error: string | null;
   /** Socket đã kết nối thành công tới namespace /tour. */
@@ -62,7 +66,39 @@ export type UseTourSocketReturn = TourSocketState & {
    * tourId mới (navigation giữa các tour trong cùng page).
    */
   switchTour: (tourId: number) => void;
+  /**
+   * Join lại room hiện tại để server gửi lại snapshot (tour-state, tour-levels, tour-log).
+   * Dùng khi dữ liệu có thể lệch, vd undo bị 409.
+   */
+  resync: () => void;
 };
+
+// ----------------------------------------------------------------------
+
+const EMPTY_LOG: ITourLogState = { logs: [], canUndo: false, undoableLogIds: [], ready: false };
+
+/** Áp event `tour-log` vào state log (theo reducer mẫu trong TOUR_ENTRIES_LOG.md). */
+function applyLogEvent(state: ITourLogState, ev: TourLogEvent): ITourLogState {
+  // Mọi event đều kèm trạng thái hoàn tác mới nhất.
+  const undo = {
+    canUndo: !!ev.canUndo,
+    undoableLogIds: ev.undoableLogIds ?? [],
+    ready: true,
+  };
+
+  switch (ev.type) {
+    case 'snapshot':
+      return { logs: ev.logs, ...undo };
+    case 'created':
+      return { logs: [ev.log, ...state.logs], ...undo };
+    case 'undone':
+      return { logs: state.logs.map((l) => (l.id === ev.log.id ? ev.log : l)), ...undo };
+    case 'reset':
+      return { logs: [], ...undo };
+    default:
+      return state;
+  }
+}
 
 // ----------------------------------------------------------------------
 
@@ -83,6 +119,7 @@ export function useTourSocket(tourId: number | undefined): UseTourSocketReturn {
   const [state, setState] = useState<TourSocketState>({
     tourState: null,
     tourLevels: null,
+    tourLog: EMPTY_LOG,
     error: null,
     connected: false,
   });
@@ -179,6 +216,13 @@ export function useTourSocket(tourId: number | undefined): UseTourSocketReturn {
       }));
     });
 
+    // -------- tour-log --------
+    // Listener đăng ký trước khi connect/join-tour nên không lỡ event `snapshot`.
+    socket.on('tour-log', (ev: TourLogEvent) => {
+      if (ev.tourId !== tourIdRef.current) return;
+      setState((s) => ({ ...s, tourLog: applyLogEvent(s.tourLog, ev) }));
+    });
+
     // -------- tour-error --------
     socket.on('tour-error', (err: ITourSocketError) => {
       // eslint-disable-next-line no-console
@@ -238,6 +282,7 @@ export function useTourSocket(tourId: number | undefined): UseTourSocketReturn {
     setState({
       tourState: null,
       tourLevels: null,
+      tourLog: EMPTY_LOG,
       error: null,
       connected: true,
     });
@@ -249,5 +294,11 @@ export function useTourSocket(tourId: number | undefined): UseTourSocketReturn {
 
   // -------------------------------------------------------
 
-  return { ...state, switchTour };
+  const resync = useCallback(() => {
+    const socket = socketRef.current;
+    if (!socket || !socket.connected || tourIdRef.current == null) return;
+    socket.emit('join-tour', { tourId: tourIdRef.current });
+  }, []);
+
+  return { ...state, switchTour, resync };
 }

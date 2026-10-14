@@ -22,6 +22,7 @@ import { TournamentDetailsClock } from '../tournament-details-clock';
 import { TournamentDetailsControl } from '../tournament-details-control';
 import { TournamentDetailsBlind } from '../tournament-details-blind';
 import { TournamentDetailsPlayer } from '../tournament-details-player';
+import { TournamentDetailsLog } from '../tournament-details-log';
 
 // ----------------------------------------------------------------------
 
@@ -30,6 +31,7 @@ const TOURNAMENT_DETAILS_TABS = [
   { label: 'Control', value: 'control' },
   { label: 'Blind', value: 'blind' },
   { label: 'Player', value: 'player' },
+  { label: 'Log', value: 'log' },
 ];
 
 // ----------------------------------------------------------------------
@@ -47,7 +49,7 @@ export function TournamentDetailsView({ id }: Props) {
   const { tournament, tournamentLoading, tournamentMutate } = useGetTournament(id);
 
   // ---- WebSocket: real-time tour-state + tour-levels ----
-  const { tourState, tourLevels, connected } = useTourSocket(id);
+  const { tourState, tourLevels, tourLog, connected, resync } = useTourSocket(id);
 
   // ---- On mobile: hide Clock tab, auto-switch to Control ----
   useEffect(() => {
@@ -113,6 +115,15 @@ export function TournamentDetailsView({ id }: Props) {
       )}
 
       {tabs.value === 'player' && <TournamentDetailsPlayer id={id} tourState={tourState} wsConnected={connected} />}
+
+      {tabs.value === 'log' && (
+        <TournamentDetailsLog
+          id={id}
+          tourLog={tourLog}
+          wsConnected={connected}
+          onResync={resync}
+        />
+      )}
     </DashboardContent>
   );
 }

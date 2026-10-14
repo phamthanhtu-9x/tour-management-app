@@ -35,7 +35,7 @@ import { ConfirmDialog } from 'src/components/custom-dialog';
 import { EmptyContent } from 'src/components/empty-content';
 import { usePopover, CustomPopover } from 'src/components/custom-popover';
 
-import { TournamentPlayerDialog } from './tournament-player-dialog';
+import { TournamentPlayerDialog, type PlayerDialogChanges } from './tournament-player-dialog';
 import { sumAddOn } from './tournament-clock-utils';
 import { TournamentPlayerInfoDialog } from './tournament-player-info-dialog';
 import { TournamentPlayerAddOnDialog } from './tournament-player-addon-dialog';
@@ -71,6 +71,7 @@ export function TournamentDetailsPlayer({ id, tourState, wsConnected }: Props) {
   const entries: TourControlEntry[] =
     wsConnected && tourState
       ? tourState.entries.map((e) => ({
+          id: e.id,
           playerId: e.playerId,
           name: e.name,
           avatar: e.avatar,
@@ -123,37 +124,89 @@ export function TournamentDetailsPlayer({ id, tourState, wsConnected }: Props) {
     [entries, id, controlMutate]
   );
 
-  const handleChangeReBuy = useCallback(
-    async (index: number, delta: number) => {
-      const current = entries[index]?.reBuyCount ?? 0;
-      const next = Math.max(0, current + delta);
-      if (next === current) return;
+  /** Rebuy +1 qua `POST .../entries/:entryId/rebuy` (ghi log REBUY, an toàn khi nhiều máy bấm cùng lúc). */
+  const handleReBuy = useCallback(
+    async (index: number) => {
+      const entry = entries[index];
+      if (!entry) return;
 
       try {
-        const updated = entries.map((e, i) =>
-          i === index ? { ...e, reBuyCount: next } : e
-        );
-        await tourService.updateEntries(id, updated);
+        if (entry.id) {
+          await tourService.rebuyEntry(id, entry.id);
+        } else {
+          // Dự phòng cho entry chưa có id (dữ liệu cũ): ghi đè cả danh sách.
+          const updated = entries.map((e, i) =>
+            i === index ? { ...e, reBuyCount: (e.reBuyCount ?? 0) + 1 } : e
+          );
+          await tourService.updateEntries(id, updated);
+        }
         controlMutate();
-        toast.success('Updated!');
+        toast.success('Re-buy success!');
       } catch (error) {
         console.error(error);
-        toast.error(getErrorMessage(error, 'Update failed!'));
+        toast.error(getErrorMessage(error, 'Re-buy failed!'));
       }
     },
     [entries, id, controlMutate]
   );
 
+  /**
+   * Lưu thay đổi từ dialog Update Players:
+   * xoá từng entry bị bỏ chọn (DELETE) rồi thêm từng player mới (POST) → log ghi rõ từng người.
+   * Nếu có entry bị bỏ mà chưa có id (dữ liệu cũ) thì dự phòng ghi đè cả danh sách (PATCH).
+   */
   const handleUpdateEntries = useCallback(
-    async (selected: TourControlEntry[]) => {
-      try {
-        await tourService.updateEntries(id, selected);
-        controlMutate();
+    async ({ added, removed, next }: PlayerDialogChanges) => {
+      if (!added.length && !removed.length) {
+        dialog.onFalse();
+        return;
+      }
+
+      if (removed.some((e) => !e.id)) {
+        try {
+          await tourService.updateEntries(id, next);
+          controlMutate();
+          dialog.onFalse();
+          toast.success('Players updated!');
+        } catch (error) {
+          console.error(error);
+          toast.error(getErrorMessage(error, 'Update failed!'));
+        }
+        return;
+      }
+
+      const failed: string[] = [];
+
+      // Gọi tuần tự để log đúng thứ tự và không tranh chấp.
+      // eslint-disable-next-line no-restricted-syntax
+      for (const entry of removed) {
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          await tourService.removeEntry(id, entry.id!);
+        } catch (error) {
+          console.error(error);
+          failed.push(entry.name || '—');
+        }
+      }
+
+      // eslint-disable-next-line no-restricted-syntax
+      for (const dto of added) {
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          await tourService.addEntry(id, dto);
+        } catch (error) {
+          console.error(error);
+          failed.push(dto.name || '—');
+        }
+      }
+
+      controlMutate();
+
+      if (failed.length) {
+        toast.error(`Could not update: ${failed.join(', ')}`);
+      } else {
         dialog.onFalse();
         toast.success('Players updated!');
-      } catch (error) {
-        console.error(error);
-        toast.error(getErrorMessage(error, 'Update failed!'));
       }
     },
     [id, controlMutate, dialog]
@@ -184,8 +237,8 @@ export function TournamentDetailsPlayer({ id, tourState, wsConnected }: Props) {
     if (menuIndex === null || !isRegOpen) return;
     const index = menuIndex;
     handleCloseMenu();
-    handleChangeReBuy(index, 1);
-  }, [menuIndex, isRegOpen, handleCloseMenu, handleChangeReBuy]);
+    handleReBuy(index);
+  }, [menuIndex, isRegOpen, handleCloseMenu, handleReBuy]);
 
   const handleMenuInfo = useCallback(() => {
     if (menuIndex === null) return;
@@ -260,9 +313,17 @@ export function TournamentDetailsPlayer({ id, tourState, wsConnected }: Props) {
   const handleDeleteEntry = useCallback(async () => {
     if (deleteIndex === null) return;
 
+    const entry = entries[deleteIndex];
+
     try {
-      const updated = entries.filter((_, i) => i !== deleteIndex);
-      await tourService.updateEntries(id, updated);
+      if (entry?.id) {
+        // Xoá qua DELETE (ghi log REMOVE, có thể hoàn tác ở tab Log).
+        await tourService.removeEntry(id, entry.id);
+      } else {
+        // Dự phòng cho entry chưa có id (dữ liệu cũ).
+        const updated = entries.filter((_, i) => i !== deleteIndex);
+        await tourService.updateEntries(id, updated);
+      }
       controlMutate();
       confirm.onFalse();
       setDeleteIndex(null);
