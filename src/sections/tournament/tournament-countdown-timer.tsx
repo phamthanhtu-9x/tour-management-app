@@ -62,6 +62,8 @@ type Props = {
   onDataChange?: (data: CountdownTimerData) => void;
   /** idx của level đăng ký cuối (regEnd) – dùng để tính thời gian còn lại tới khi đóng đăng ký. */
   regEndIdx?: number | null;
+  /** Đăng ký còn mở hay không (server tính). false → hiển thị "Closed". */
+  isRegOpen?: boolean;
 };
 
 // ----------------------------------------------------------------------
@@ -102,6 +104,7 @@ export function TournamentCountdownTimer({
   tourId,
   onDataChange,
   regEndIdx,
+  isRegOpen,
 }: Props) {
   // -------------------------------------------------------
   // Client-side ticking
@@ -241,7 +244,11 @@ export function TournamentCountdownTimer({
         ? getSecondsToRegEnd(levels, currentLevelIdx, regEndIdx, displayElapsed)
         : null;
     const regEndIn =
-      regEndSeconds != null ? formatTimeLong(regEndSeconds) : null;
+      isRegOpen === false
+        ? 'Closed'
+        : regEndSeconds != null
+          ? formatTimeLong(regEndSeconds)
+          : null;
 
     return {
       level: currentIsBreak || currentBlindNumber === null ? '—' : currentBlindNumber,
@@ -254,7 +261,7 @@ export function TournamentCountdownTimer({
       nextBreakIn,
       regEndIn,
     };
-  }, [tourState, levels, displayElapsed]);
+  }, [tourState, levels, displayElapsed, regEndIdx, isRegOpen]);
 
   // Đẩy clock data lên parent mỗi khi thay đổi.
   useEffect(() => {

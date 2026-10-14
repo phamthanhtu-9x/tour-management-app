@@ -28,6 +28,11 @@ export type PlayerSchemaType = zod.infer<typeof PlayerSchema>;
 export const PlayerSchema = zod.object({
   name: zod.string().min(1, { message: 'Name is required!' }),
   avatar: schemaHelper.file({ message: { required_error: 'Avatar is required!' } }),
+  point: zod
+    .number({ invalid_type_error: 'Point must be a number!' })
+    .min(0, { message: 'Point must be greater than or equal to 0!' })
+    .optional()
+    .nullable(),
 });
 
 // ----------------------------------------------------------------------
@@ -46,6 +51,7 @@ export function PlayerFormDialog({ open, onClose, currentPlayer, onSuccess }: Pr
     () => ({
       name: currentPlayer?.name || '',
       avatar: currentPlayer?.avatar || null,
+      point: currentPlayer?.point ?? 0,
     }),
     [currentPlayer]
   );
@@ -79,7 +85,7 @@ export function PlayerFormDialog({ open, onClose, currentPlayer, onSuccess }: Pr
         avatarUrl = data.avatar;
       }
 
-      const body = { name: data.name, avatar: avatarUrl };
+      const body = { name: data.name, avatar: avatarUrl, point: data.point ?? 0 };
 
       if (isEdit && currentPlayer) {
         await playerService.updatePlayer(currentPlayer.id, body);
@@ -124,7 +130,15 @@ export function PlayerFormDialog({ open, onClose, currentPlayer, onSuccess }: Pr
             />
           </Box>
 
-          <Field.Text name="name" label="Name" />
+          <Field.Text name="name" label="Name" sx={{ mb: 2.5 }} />
+
+          <Field.Text
+            name="point"
+            label="Point"
+            type="number"
+            placeholder="0"
+            InputLabelProps={{ shrink: true }}
+          />
         </DialogContent>
 
         <DialogActions>

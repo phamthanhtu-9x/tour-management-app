@@ -2,7 +2,7 @@ import type { ITournamentItem } from 'src/types/tournament';
 import type { TourLevelItemDto } from 'src/services/types';
 import type { ITourState, ITourLevelsPayload } from 'src/types/tour-socket';
 
-import { useMemo, useCallback, useRef, useState } from 'react';
+import { useMemo, useEffect, useCallback, useRef, useState } from 'react';
 
 import Typography from '@mui/material/Typography';
 
@@ -17,6 +17,12 @@ import { TournamentClockPrize } from './tournament-clock-prize';
 import type { CountdownTimerData } from './tournament-countdown-timer';
 import { TournamentCountdownTimer } from './tournament-countdown-timer';
 import { TournamentClockLayout } from './tournament-clock-layout';
+import { computeEntryStats } from './tournament-clock-utils';
+
+// ----------------------------------------------------------------------
+
+/** Chu kỳ gọi lại REST control khi mất WebSocket (ms). */
+const CONTROL_POLL_MS = 5000;
 
 // ----------------------------------------------------------------------
 
@@ -58,7 +64,14 @@ export function TournamentDetailsClock({
 
   const [clockData, setClockData] = useState<CountdownTimerData | null>(null);
 
-  const { control: restControl } = useGetTourControl(tournament?.id);
+  const { control: restControl, controlMutate } = useGetTourControl(tournament?.id, {
+    refreshInterval: wsConnected ? 0 : CONTROL_POLL_MS,
+  });
+
+  // Socket vừa rớt → lấy lại REST control ngay thay vì chờ chu kỳ polling.
+  useEffect(() => {
+    if (!wsConnected) controlMutate();
+  }, [wsConnected, controlMutate]);
   const { levels: restLevels } = useGetTourLevels(tournament?.id);
 
   // ---- Merge socket data với REST data: socket ưu tiên khi connected ----
@@ -67,12 +80,16 @@ export function TournamentDetailsClock({
       return {
         currentLevel: tourState.currentLevel,
         entries: tourState.entries.map((e) => ({
+          playerId: e.playerId,
           name: e.name,
           avatar: e.avatar,
           isEliminated: e.isEliminated,
           reBuyCount: e.reBuyCount,
+          addOn: e.addOn ?? [],
         })),
         gtd: tourState.gtd,
+        regEnd: tourState.regEnd,
+        isRegOpen: tourState.isRegOpen,
       };
     }
     return restControl;
@@ -94,11 +111,10 @@ export function TournamentDetailsClock({
   }, [wsConnected, tourLevels, restLevels]);
 
   // ---- Derived stats cho ClockInfo ----
-  const entries = control?.entries ?? [];
-  const buyin = entries.length;
-  const totalReBuys = entries.reduce((sum, e) => sum + (e.reBuyCount ?? 0), 0);
-  const totalEntries = buyin + totalReBuys;
-  const activeEntries = entries.filter((e) => !e.isEliminated).length;
+  const entryStats = useMemo(
+    () => computeEntryStats(control?.entries, tournament?.startingStack),
+    [control?.entries, tournament?.startingStack]
+  );
 
   // ---- GTD prize ----
   const gtdPrize = parseGtd(control?.gtd);
@@ -139,11 +155,7 @@ export function TournamentDetailsClock({
       }
       left={
         <TournamentClockInfo
-          tournament={tournament}
-          activeEntries={activeEntries}
-          totalEntries={totalEntries}
-          totalBuyin={buyin}
-          totalReBuys={totalReBuys}
+          stats={entryStats}
           nextBreakIn={clockData?.nextBreakIn}
           regEndIn={clockData?.regEndIn}
         />
@@ -155,7 +167,8 @@ export function TournamentDetailsClock({
           restControl={restControl}
           tourId={tournament?.id}
           onDataChange={setClockData}
-          regEndIdx={tournament?.regEnd}
+          regEndIdx={control?.regEnd !== undefined ? control.regEnd : tournament?.regEnd}
+          isRegOpen={control?.isRegOpen}
         />
       }
       right={<TournamentClockPrize gtdPrize={gtdPrize} />}

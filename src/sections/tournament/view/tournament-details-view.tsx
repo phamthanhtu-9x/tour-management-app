@@ -108,7 +108,9 @@ export function TournamentDetailsView({ id }: Props) {
         />
       )}
 
-      {tabs.value === 'blind' && <TournamentDetailsBlind id={id} />}
+      {tabs.value === 'blind' && (
+        <TournamentDetailsBlind id={id} tourLevels={tourLevels} wsConnected={connected} />
+      )}
 
       {tabs.value === 'player' && <TournamentDetailsPlayer id={id} tourState={tourState} wsConnected={connected} />}
     </DashboardContent>

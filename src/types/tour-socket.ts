@@ -4,10 +4,20 @@
 
 /** Một người chơi trong danh sách entries của tour. */
 export interface ITourSocketPlayerEntry {
+  /**
+   * Id người chơi trong bảng players (không có nếu là khách vãng lai).
+   * Server kiểm tra playerId tồn tại và thuộc về user khi ghi entries.
+   */
+  playerId?: number;
   name: string;
   avatar?: string;
   isEliminated: boolean;
   reBuyCount: number;
+  /**
+   * Số chip của từng lần add-on (mỗi phần tử = 1 lần), ví dụ [10000, 10000].
+   * Tổng chip add-on = tổng các phần tử. Mặc định [].
+   */
+  addOn: number[];
 }
 
 // ----------------------------------------------------------------------
@@ -38,6 +48,13 @@ export interface ITourState {
   entries: ITourSocketPlayerEntry[];
   /** Chuỗi GTD (giải thưởng), ví dụ '100/60/40/25/15/10' */
   gtd: string | null;
+  /** Idx của level mà đăng ký (re-entry) kết thúc. null = không giới hạn. */
+  regEnd: number | null;
+  /**
+   * Đăng ký còn mở hay không – do SERVER tính:
+   * `regEnd === null || currentLevel <= regEnd` (mở tới hết level regEnd).
+   */
+  isRegOpen: boolean;
 }
 
 // ----------------------------------------------------------------------

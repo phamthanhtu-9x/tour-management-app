@@ -1,50 +1,30 @@
-import type { ITournamentItem } from 'src/types/tournament';
+import type { TourEntryStats } from './tournament-clock-utils';
 
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 
+import { formatChips } from './tournament-clock-utils';
+
 // ----------------------------------------------------------------------
 
 type Props = {
-  tournament?: ITournamentItem | null;
-  activeEntries?: number;
-  totalEntries?: number;
-  totalBuyin?: number;
-  totalReBuys?: number;
+  /** Thống kê entries / chip, tính bằng `computeEntryStats`. */
+  stats?: TourEntryStats | null;
   nextBreakIn?: string | null;
   regEndIn?: string | null;
 };
 
-export function TournamentClockInfo({
-  tournament,
-  activeEntries,
-  totalEntries,
-  totalBuyin,
-  totalReBuys,
-  nextBreakIn,
-  regEndIn,
-}: Props) {
-  const entriesValue =
-    activeEntries != null && totalEntries != null ? `${activeEntries} / ${totalEntries}` : '—';
-
-  const chipsInPlay =
-    totalEntries != null && tournament?.startingStack != null
-      ? totalEntries * tournament.startingStack
-      : null;
-
-  const avgStack =
-    chipsInPlay != null && activeEntries != null && activeEntries > 0
-      ? Math.round(chipsInPlay / activeEntries).toLocaleString()
-      : '—';
+export function TournamentClockInfo({ stats, nextBreakIn, regEndIn }: Props) {
+  const entriesValue = stats ? `${stats.activeEntries} / ${stats.totalEntries}` : '—';
 
   const rows = [
     { label: 'Entries', value: entriesValue },
     {
       label: 'Re-buy / Buy-in',
-      value: `${totalReBuys ?? 0} / ${totalBuyin ?? 0}`,
+      value: `${stats?.totalReBuys ?? 0} / ${stats?.buyin ?? 0}`,
     },
-    { label: 'Chips in play', value: chipsInPlay != null ? chipsInPlay.toLocaleString() : '—' },
-    { label: 'Average Stack', value: avgStack },
+    { label: 'Chips in play', value: formatChips(stats?.chipsInPlay) },
+    { label: 'Average Stack', value: formatChips(stats?.avgStack) },
     { label: 'Next break', value: nextBreakIn || '—' },
     { label: 'Reg closed', value: regEndIn || '—' },
   ];

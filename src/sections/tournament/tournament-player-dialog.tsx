@@ -23,16 +23,38 @@ import { Scrollbar } from 'src/components/scrollbar';
 
 // ----------------------------------------------------------------------
 
+const playerKey = (id: number) => `p:${id}`;
+const nameKey = (name: string) => `n:${name}`;
+
+/** Khoá định danh một entry: playerId nếu có, nếu không thì theo tên. */
+function entryKey(entry: TourControlEntry): string | null {
+  if (entry.playerId != null) return playerKey(entry.playerId);
+  return entry.name ? nameKey(entry.name) : null;
+}
+
+// ----------------------------------------------------------------------
+
 type Props = {
   open: boolean;
   onClose: () => void;
   currentEntries: TourControlEntry[];
   onSave: (selected: TourControlEntry[]) => Promise<void>;
+  /**
+   * Cho phép thêm player mới (chưa có trong tour) hay không.
+   * false khi đăng ký đã đóng: vẫn bỏ chọn được player hiện có, nhưng không thêm mới.
+   */
+  allowAddNew?: boolean;
 };
 
 // ----------------------------------------------------------------------
 
-export function TournamentPlayerDialog({ open, onClose, currentEntries, onSave }: Props) {
+export function TournamentPlayerDialog({
+  open,
+  onClose,
+  currentEntries,
+  onSave,
+  allowAddNew = true,
+}: Props) {
   const [page, setPage] = useState(1);
 
   // Only fetch when dialog is open
@@ -71,35 +93,61 @@ export function TournamentPlayerDialog({ open, onClose, currentEntries, onSave }
 
   const hasMore = playersTotal > 0 && allPlayers.length < playersTotal;
 
-  // ---- current entries names ----------------------------------------------
+  // ---- Khoá định danh entry ----------------------------------------------
+  // Ưu tiên playerId (`p:<id>`); entry cũ / khách vãng lai không có playerId thì dùng tên (`n:<name>`).
 
-  const currentNames = useMemo(() => {
+  /** Các khoá của entries hiện có trong tour. */
+  const currentKeys = useMemo(() => {
     const set = new Set<string>();
     currentEntries.forEach((e) => {
-      if (e.name) set.add(e.name);
+      const key = entryKey(e);
+      if (key) set.add(key);
     });
     return set;
   }, [currentEntries]);
 
-  // ---- selected names ----------------------------------------------------
+  /** Player (từ danh sách /players) đã có trong tour chưa – theo playerId, hoặc theo tên với entry cũ. */
+  const isInTour = useCallback(
+    (player: IPlayerItem) =>
+      currentKeys.has(playerKey(player.id)) ||
+      (!!player.name && currentKeys.has(nameKey(player.name))),
+    [currentKeys]
+  );
 
-  const [selectedNames, setSelectedNames] = useState<Set<string>>(new Set());
+  // ---- selected keys -----------------------------------------------------
+
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
 
   const prevOpenRef = useRef(false);
   useEffect(() => {
     if (open && !prevOpenRef.current) {
-      setSelectedNames(currentNames);
+      setSelectedKeys(new Set(currentKeys));
     }
     prevOpenRef.current = open;
-  }, [open, currentNames]);
+  }, [open, currentKeys]);
+
+  const isSelected = useCallback(
+    (player: IPlayerItem) =>
+      selectedKeys.has(playerKey(player.id)) ||
+      (!!player.name && selectedKeys.has(nameKey(player.name))),
+    [selectedKeys]
+  );
 
   // ---- toggle -------------------------------------------------------------
 
-  const handleToggle = useCallback((name: string) => {
-    setSelectedNames((prev) => {
+  const handleToggle = useCallback((player: IPlayerItem) => {
+    setSelectedKeys((prev) => {
       const next = new Set(prev);
-      if (next.has(name)) next.delete(name);
-      else next.add(name);
+      const pKey = playerKey(player.id);
+      const nKey = player.name ? nameKey(player.name) : null;
+      const selected = next.has(pKey) || (!!nKey && next.has(nKey));
+
+      if (selected) {
+        next.delete(pKey);
+        if (nKey) next.delete(nKey);
+      } else {
+        next.add(pKey);
+      }
       return next;
     });
   }, []);
@@ -111,27 +159,47 @@ export function TournamentPlayerDialog({ open, onClose, currentEntries, onSave }
   const handleSave = useCallback(async () => {
     setSaving(true);
     try {
-      const existingMap = new Map<string, TourControlEntry>();
+      const updated: TourControlEntry[] = [];
+      const keptPlayerIds = new Set<number>();
+
+      // 1. Giữ các entry hiện có còn được chọn (giữ nguyên thứ tự, reBuyCount, isEliminated...).
       currentEntries.forEach((e) => {
-        if (e.name) existingMap.set(e.name, e);
+        const key = entryKey(e);
+        if (!key) return;
+
+        // Entry cũ (chưa có playerId) nhưng khớp tên một player → bổ sung playerId.
+        const matched =
+          e.playerId == null && e.name ? allPlayers.find((p) => p.name === e.name) : undefined;
+        const stillSelected =
+          selectedKeys.has(key) || (!!matched && selectedKeys.has(playerKey(matched.id)));
+        if (!stillSelected) return;
+
+        const entry = matched ? { ...e, playerId: matched.id } : e;
+        if (entry.playerId != null) keptPlayerIds.add(entry.playerId);
+        updated.push(entry);
       });
 
-      const updated: TourControlEntry[] = [];
-      selectedNames.forEach((name) => {
-        const existing = existingMap.get(name);
-        if (existing) {
-          updated.push(existing);
-        } else {
-          const player = allPlayers.find((p) => p.name === name);
-          updated.push({ name, avatar: player?.avatar ?? undefined, isEliminated: false, reBuyCount: 0 });
-        }
+      // 2. Thêm player mới được chọn (gửi kèm playerId).
+      allPlayers.forEach((player) => {
+        if (keptPlayerIds.has(player.id)) return;
+        if (!selectedKeys.has(playerKey(player.id))) return;
+        if (isInTour(player)) return;
+
+        updated.push({
+          playerId: player.id,
+          name: player.name ?? '',
+          avatar: player.avatar ?? undefined,
+          isEliminated: false,
+          reBuyCount: 0,
+          addOn: [],
+        });
       });
 
       await onSave(updated);
     } finally {
       setSaving(false);
     }
-  }, [selectedNames, currentEntries, allPlayers, onSave]);
+  }, [selectedKeys, currentEntries, allPlayers, isInTour, onSave]);
 
   const handleCancel = useCallback(() => {
     onClose();
@@ -159,6 +227,12 @@ export function TournamentPlayerDialog({ open, onClose, currentEntries, onSave }
       <DialogTitle>Update Players</DialogTitle>
 
       <DialogContent dividers sx={{px: 0, py: 2}}>
+        {!allowAddNew && (
+          <Typography variant="body2" color="warning.main" sx={{ px: 2, pb: 1.5 }}>
+            Registration is closed – new players cannot be added.
+          </Typography>
+        )}
+
         <Scrollbar sx={{ maxHeight: 400, overflowY: 'auto' }}>
         {isFirstPageLoading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
@@ -173,29 +247,34 @@ export function TournamentPlayerDialog({ open, onClose, currentEntries, onSave }
         ) : (
           <Box>
             {allPlayers.map((player) => {
-              const checked = selectedNames.has(player.name ?? '');
+              const checked = isSelected(player);
+              // Khi đóng đăng ký: không cho chọn player chưa có trong tour.
+              const locked = !allowAddNew && !isInTour(player);
               const displayName = player.name || '—';
               const avatarUrl = getFileUrl(player.avatar);
 
               return (
                 <Box
                   key={player.id}
-                  onClick={() => handleToggle(player.name ?? '')}
+                  onClick={() => {
+                    if (!locked) handleToggle(player);
+                  }}
                   sx={{
                     display: 'flex',
                     alignItems: 'center',
                     px: 2,
                     py: 0.75,
-                    cursor: 'pointer',
-                    '&:hover': { bgcolor: 'action.hover' },
+                    cursor: locked ? 'not-allowed' : 'pointer',
+                    opacity: locked ? 0.5 : 1,
+                    '&:hover': { bgcolor: locked ? 'transparent' : 'action.hover' },
                   }}
                 >
                   <Checkbox
                     checked={checked}
-                    onChange={(e) => {
-                      e.stopPropagation();
-                      handleToggle(player.name ?? '');
-                    }}
+                    disabled={locked}
+                    // Chặn click lan lên Box cha (nếu không sẽ toggle 2 lần → không đổi trạng thái)
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={() => handleToggle(player)}
                     sx={{ mr: 1 }}
                   />
 

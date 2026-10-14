@@ -120,14 +120,25 @@ export function useTourSocket(tourId: number | undefined): UseTourSocketReturn {
     }
 
     // Tạo socket mới.
+    // - auth dạng function: mỗi lần (re)connect đều đọc token mới nhất từ sessionStorage.
+    // - Không giới hạn số lần reconnect: thiết bị mất mạng lâu vẫn tự nối lại.
     const socket: Socket<TourServerToClientEvents, TourClientToServerEvents> = io(getWsUrl(), {
-      auth: { token },
+      auth: (cb) => cb({ token: getToken() ?? '' }),
       transports: ['websocket', 'polling'],
       reconnection: true,
-      reconnectionAttempts: 10,
+      reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 10000,
     });
+
+    // Timer cho lần reconnect thủ công (khi server chủ động ngắt).
+    let manualReconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
+    /** Kết nối lại thủ công nếu socket đang ngắt và còn token. */
+    const reconnectIfNeeded = () => {
+      if (socket.connected || socket.active || !getToken()) return;
+      socket.connect();
+    };
 
     socketRef.current = socket;
 
@@ -180,10 +191,27 @@ export function useTourSocket(tourId: number | undefined): UseTourSocketReturn {
       // eslint-disable-next-line no-console
       console.warn('[tour-socket] disconnect:', reason);
       setState((s) => ({ ...s, connected: false }));
+
+      // Server chủ động ngắt (vd token hết hạn) → Socket.IO KHÔNG tự reconnect.
+      // Thử lại sau 3s với token mới nhất (auth function đọc lại sessionStorage).
+      if (reason === 'io server disconnect') {
+        if (manualReconnectTimer) clearTimeout(manualReconnectTimer);
+        manualReconnectTimer = setTimeout(reconnectIfNeeded, 3000);
+      }
     });
+
+    // Tab / màn hình quay lại foreground hoặc có mạng lại → nối lại ngay nếu đang ngắt.
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') reconnectIfNeeded();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('online', reconnectIfNeeded);
 
     // Cleanup khi unmount hoặc tourId thay đổi.
     return () => {
+      if (manualReconnectTimer) clearTimeout(manualReconnectTimer);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('online', reconnectIfNeeded);
       if (socket.connected) {
         socket.emit('leave-tour', { tourId: tourIdRef.current! });
       }

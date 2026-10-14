@@ -13,6 +13,7 @@ import { useBoolean } from 'src/hooks/use-boolean';
 import { tourService } from 'src/services';
 
 import { toast } from 'src/components/snackbar';
+import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 
@@ -25,6 +26,8 @@ type Props = {
   levels: TourLevelItemDto[];
   /** Clock có đang chạy không: running = true, paused/chưa start = false */
   isRunning: boolean;
+  /** isPaused từ REST control (nếu có) – dùng khi chưa có socket. */
+  isPaused?: boolean;
   controlMutate: () => void;
   /** Real-time tour state từ WebSocket (để biết isPaused). */
   tourState?: ITourState | null;
@@ -38,6 +41,7 @@ export function TournamentControlPanel({
   id,
   levels,
   isRunning,
+  isPaused,
   controlMutate,
   tourState,
   wsConnected,
@@ -53,7 +57,8 @@ export function TournamentControlPanel({
   // ticking: tour đang chạy thực sự (started && !paused)
   const hasSocket = !!(wsConnected && tourState);
   const started = hasSocket ? !!tourState!.isRunning : isRunning;
-  const paused = hasSocket ? !!tourState!.isPaused : !isRunning;
+  // Không có socket: dùng isPaused của REST nếu có, nếu không đành suy từ isRunning.
+  const paused = hasSocket ? !!tourState!.isPaused : (isPaused ?? !isRunning);
   const ticking = started && !paused;
 
   const runAction = useCallback(
@@ -163,9 +168,18 @@ export function TournamentControlPanel({
   return (
     <>
       <Card sx={{ p: 3 }}>
-        <Typography variant="subtitle1" sx={{ mb: 2 }}>
-          Clock Control
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+          <Typography variant="subtitle1">Clock Control</Typography>
+
+          {/* Trạng thái kết nối real-time: Offline → đang dùng REST, có thể trễ vài giây */}
+          <Label
+            variant="soft"
+            color={wsConnected ? 'success' : 'warning'}
+            startIcon={<Iconify icon={wsConnected ? 'eva:wifi-fill' : 'eva:wifi-off-fill'} />}
+          >
+            {wsConnected ? 'Live' : 'Offline – reconnecting'}
+          </Label>
+        </Box>
 
         <Box
           sx={{

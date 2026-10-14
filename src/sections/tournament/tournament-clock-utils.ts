@@ -1,4 +1,5 @@
-import type { TourLevelItemDto } from 'src/services/types';
+import type { ITourLevelsPayload } from 'src/types/tour-socket';
+import type { TourLevelItemDto, TourControlEntry } from 'src/services/types';
 
 // ----------------------------------------------------------------------
 
@@ -163,4 +164,91 @@ export function getSecondsToRegEnd(
   }
 
   return total;
+}
+
+// ----------------------------------------------------------------------
+
+/** Thống kê entries / chip của tour, dùng chung cho màn hình clock và tab control. */
+export type TourEntryStats = {
+  /** Số lượt buy-in (= số entry). */
+  buyin: number;
+  /** Tổng số lượt re-buy của mọi entry. */
+  totalReBuys: number;
+  /** Tổng lượt vào giải = buyin + totalReBuys. */
+  totalEntries: number;
+  /** Số entry chưa bị loại. */
+  activeEntries: number;
+  /** Tổng số lần add-on của mọi entry. */
+  addOnCount: number;
+  /** Tổng chip add-on của mọi entry. */
+  totalAddOnChips: number;
+  /**
+   * Tổng chip trong giải = totalEntries × startingStack + totalAddOnChips;
+   * null nếu chưa có entry nào hoặc tour chưa có startingStack.
+   */
+  chipsInPlay: number | null;
+  /** Stack trung bình = chipsInPlay / activeEntries (làm tròn); null nếu không tính được. */
+  avgStack: number | null;
+};
+
+/**
+ * Tính thống kê entries / chip từ danh sách entries của control.
+ * Giả định mỗi buy-in và mỗi re-buy đều nhận đủ `startingStack` chip; add-on cộng thêm đúng số chip đã ghi.
+ */
+export function computeEntryStats(
+  entries: TourControlEntry[] | null | undefined,
+  startingStack: number | null | undefined
+): TourEntryStats {
+  const list = entries ?? [];
+
+  const buyin = list.length;
+  const totalReBuys = list.reduce((sum, e) => sum + (e.reBuyCount ?? 0), 0);
+  const totalEntries = buyin + totalReBuys;
+  const activeEntries = list.filter((e) => !e.isEliminated).length;
+  const addOnCount = list.reduce((sum, e) => sum + (e.addOn?.length ?? 0), 0);
+  const totalAddOnChips = list.reduce((sum, e) => sum + sumAddOn(e.addOn), 0);
+
+  const chipsInPlay =
+    startingStack != null && totalEntries > 0
+      ? totalEntries * startingStack + totalAddOnChips
+      : null;
+
+  const avgStack =
+    chipsInPlay != null && activeEntries > 0 ? Math.round(chipsInPlay / activeEntries) : null;
+
+  return {
+    buyin,
+    totalReBuys,
+    totalEntries,
+    activeEntries,
+    addOnCount,
+    totalAddOnChips,
+    chipsInPlay,
+    avgStack,
+  };
+}
+
+/** Tổng chip add-on của một entry. */
+export function sumAddOn(addOn: number[] | null | undefined): number {
+  return (addOn ?? []).reduce((sum, chips) => sum + (Number(chips) || 0), 0);
+}
+
+/** Format số chip để hiển thị: "1,234,567" hoặc '—' nếu null. */
+export function formatChips(value: number | null | undefined): string {
+  return value != null ? value.toLocaleString() : '—';
+}
+
+// ----------------------------------------------------------------------
+
+/** Chuyển payload `tour-levels` từ WebSocket sang `TourLevelItemDto[]` (null → undefined). */
+export function mapSocketLevels(payload: ITourLevelsPayload): TourLevelItemDto[] {
+  return payload.levels.map((l) => ({
+    name: l.name ?? undefined,
+    type: l.type,
+    idx: l.idx,
+    duration: l.duration,
+    smallBlind: l.smallBlind ?? undefined,
+    bigBlind: l.bigBlind ?? undefined,
+    ante: l.ante ?? undefined,
+  }));
 }

@@ -13,8 +13,10 @@ import CircularProgress from '@mui/material/CircularProgress';
 import { tourService } from 'src/services';
 
 import {
+  formatChips,
   formatBlinds,
   findNextLevel,
+  computeEntryStats,
   getBlindLevelNumber,
   getSecondsToNextBreak,
   getSecondsToRegEnd,
@@ -199,22 +201,10 @@ export function TournamentTourTimer({
     const totalDisplay = formatTime(durationSeconds);
 
     // ---- Compute entries / chip stats ----
-    const entries = control?.entries ?? [];
-    const buyin = entries.length;
-    const totalReBuys = entries.reduce((sum, e) => sum + (e.reBuyCount ?? 0), 0);
-    const totalEntries = buyin + totalReBuys;
-    const activeEntries = entries.filter((e) => !e.isEliminated).length;
+    const stats = computeEntryStats(control?.entries, tournament?.startingStack);
 
-    const entriesValue = `${activeEntries} / ${totalEntries}`;
-    const rebuyBuyinValue = `${totalReBuys} / ${buyin}`;
-
-    const chipsInPlay =
-      totalEntries && tournament?.startingStack ? totalEntries * tournament.startingStack : null;
-
-    const avgStack =
-      chipsInPlay != null && activeEntries > 0
-        ? Math.round(chipsInPlay / activeEntries).toLocaleString()
-        : '—';
+    const entriesValue = `${stats.activeEntries} / ${stats.totalEntries}`;
+    const rebuyBuyinValue = `${stats.totalReBuys} / ${stats.buyin}`;
 
     const gtd = (control as any)?.gtd ?? '';
 
@@ -226,12 +216,18 @@ export function TournamentTourTimer({
     const nextBreakIn =
       nextBreakSeconds != null ? formatTimeLong(nextBreakSeconds) : '—';
 
+    // regEnd / isRegOpen: ưu tiên control (socket / REST) vì real-time; fallback tournament.
+    const regEnd = control?.regEnd !== undefined ? control.regEnd : tournament?.regEnd;
     const regEndSeconds =
       currentLevelIdx != null
-        ? getSecondsToRegEnd(levels, currentLevelIdx, tournament?.regEnd, displayElapsed)
+        ? getSecondsToRegEnd(levels, currentLevelIdx, regEnd, displayElapsed)
         : null;
     const regEndIn =
-      regEndSeconds != null ? formatTimeLong(regEndSeconds) : '—';
+      control?.isRegOpen === false
+        ? 'Closed'
+        : regEndSeconds != null
+          ? formatTimeLong(regEndSeconds)
+          : '—';
 
     return [
       { label: 'Current Level', value: currentLevelFull },
@@ -239,8 +235,8 @@ export function TournamentTourTimer({
       { label: `Remaining (total ${totalDisplay})`, value: durationDisplay },
       { label: 'Entries', value: entriesValue },
       { label: 'Re-buy / Buy-in', value: rebuyBuyinValue },
-      { label: 'Chips in play', value: chipsInPlay != null ? chipsInPlay.toLocaleString() : '—' },
-      { label: 'Average Stack', value: avgStack },
+      { label: 'Chips in play', value: formatChips(stats.chipsInPlay) },
+      { label: 'Average Stack', value: formatChips(stats.avgStack) },
       { label: 'Next break', value: nextBreakIn },
       { label: 'Reg closed', value: regEndIn },
       { label: 'GTD', value: gtd || '—' },

@@ -10,6 +10,7 @@ import TableCell from '@mui/material/TableCell';
 import IconButton from '@mui/material/IconButton';
 
 import { fDate } from 'src/utils/format-time';
+import { fNumber } from 'src/utils/format-number';
 import { getFileUrl } from 'src/utils/file-url';
 
 import { Iconify } from 'src/components/iconify';
@@ -43,6 +44,10 @@ export function PlayerTableRow({ row, onView, onEdit, onDelete }: Props) {
           <Stack spacing={0.5}>
             <Box component="span">{displayName}</Box>
           </Stack>
+        </TableCell>
+
+        <TableCell align="right" sx={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+          {fNumber(row.point ?? 0)}
         </TableCell>
 
         <TableCell sx={{ color: 'text.secondary', whiteSpace: 'nowrap' }}>

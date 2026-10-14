@@ -72,12 +72,15 @@ export function useGetTournament(id: number | undefined) {
 
 // ----------------------------------------------------------------------
 
-/** Control data của một tournament (entries, clock state...). Chỉ fetch khi có id. */
-export function useGetTourControl(id: number | undefined) {
+/**
+ * Control data của một tournament (entries, clock state...). Chỉ fetch khi có id.
+ * `refreshInterval` (ms): tự gọi lại định kỳ – dùng làm dự phòng khi mất WebSocket.
+ */
+export function useGetTourControl(id: number | undefined, options?: { refreshInterval?: number }) {
   const { data, isLoading, error, isValidating, mutate } = useSWR(
     id ? ['tournament-control', id] : null,
     () => tourService.getTourControl(id!),
-    swrOptions
+    { ...swrOptions, refreshInterval: options?.refreshInterval ?? 0 }
   );
 
   const memoizedValue = useMemo(() => {

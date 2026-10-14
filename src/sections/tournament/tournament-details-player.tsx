@@ -3,7 +3,7 @@
 import type { ITourState } from 'src/types/tour-socket';
 import type { TourControlEntry } from 'src/services/types';
 
-import { useState, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -11,6 +11,8 @@ import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
 import Switch from '@mui/material/Switch';
 import Avatar from '@mui/material/Avatar';
+import MenuList from '@mui/material/MenuList';
+import MenuItem from '@mui/material/MenuItem';
 import IconButton from '@mui/material/IconButton';
 import TableBody from '@mui/material/TableBody';
 import TableRow from '@mui/material/TableRow';
@@ -24,13 +26,24 @@ import { useBoolean } from 'src/hooks/use-boolean';
 import { useGetTourControl } from 'src/actions/tournament';
 import { tourService } from 'src/services';
 import { getFileUrl } from 'src/utils/file-url';
+import { fNumber } from 'src/utils/format-number';
+import { getErrorMessage } from 'src/utils/get-error-message';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { EmptyContent } from 'src/components/empty-content';
+import { usePopover, CustomPopover } from 'src/components/custom-popover';
 
 import { TournamentPlayerDialog } from './tournament-player-dialog';
+import { sumAddOn } from './tournament-clock-utils';
+import { TournamentPlayerInfoDialog } from './tournament-player-info-dialog';
+import { TournamentPlayerAddOnDialog } from './tournament-player-addon-dialog';
+
+// ----------------------------------------------------------------------
+
+/** Chu kỳ gọi lại REST control khi mất WebSocket (ms). */
+const CONTROL_POLL_MS = 5000;
 
 // ----------------------------------------------------------------------
 
@@ -45,24 +58,48 @@ type Props = {
 // ----------------------------------------------------------------------
 
 export function TournamentDetailsPlayer({ id, tourState, wsConnected }: Props) {
-  const { control: restControl, controlLoading, controlMutate } = useGetTourControl(id);
+  const { control: restControl, controlLoading, controlMutate } = useGetTourControl(id, {
+    refreshInterval: wsConnected ? 0 : CONTROL_POLL_MS,
+  });
+
+  // Socket vừa rớt → lấy lại REST control ngay thay vì chờ chu kỳ polling.
+  useEffect(() => {
+    if (!wsConnected) controlMutate();
+  }, [wsConnected, controlMutate]);
 
   // ---- Merge socket data với REST data: socket ưu tiên khi connected ----
   const entries: TourControlEntry[] =
     wsConnected && tourState
       ? tourState.entries.map((e) => ({
+          playerId: e.playerId,
           name: e.name,
           avatar: e.avatar,
           isEliminated: e.isEliminated,
           reBuyCount: e.reBuyCount,
+          addOn: e.addOn ?? [],
         }))
       : (restControl?.entries ?? []);
+
+  // Đăng ký còn mở không (server tính). Không có dữ liệu → coi như còn mở.
+  const isRegOpen =
+    (wsConnected && tourState ? tourState.isRegOpen : restControl?.isRegOpen) ?? true;
 
   const dialog = useBoolean();
   const confirm = useBoolean();
 
+  const popover = usePopover();
+  const infoDialog = useBoolean();
+  /** Entry đang xem Info – chốt lúc mở để không đổi người khi danh sách cập nhật real-time. */
+  const [infoEntry, setInfoEntry] = useState<TourControlEntry | null>(null);
+
+  const addOnDialog = useBoolean();
+  /** Entry đang add-on – chốt lúc mở dialog. */
+  const [addOnEntry, setAddOnEntry] = useState<TourControlEntry | null>(null);
+
   const [togglingEntry, setTogglingEntry] = useState<number | null>(null);
   const [deleteIndex, setDeleteIndex] = useState<number | null>(null);
+  /** Index của entry đang mở menu Actions. */
+  const [menuIndex, setMenuIndex] = useState<number | null>(null);
 
   // ----------------------------------------------------------------------
 
@@ -78,7 +115,7 @@ export function TournamentDetailsPlayer({ id, tourState, wsConnected }: Props) {
         toast.success('Updated!');
       } catch (error) {
         console.error(error);
-        toast.error('Update failed!');
+        toast.error(getErrorMessage(error, 'Update failed!'));
       } finally {
         setTogglingEntry(null);
       }
@@ -101,7 +138,7 @@ export function TournamentDetailsPlayer({ id, tourState, wsConnected }: Props) {
         toast.success('Updated!');
       } catch (error) {
         console.error(error);
-        toast.error('Update failed!');
+        toast.error(getErrorMessage(error, 'Update failed!'));
       }
     },
     [entries, id, controlMutate]
@@ -116,7 +153,7 @@ export function TournamentDetailsPlayer({ id, tourState, wsConnected }: Props) {
         toast.success('Players updated!');
       } catch (error) {
         console.error(error);
-        toast.error('Update failed!');
+        toast.error(getErrorMessage(error, 'Update failed!'));
       }
     },
     [id, controlMutate, dialog]
@@ -130,6 +167,96 @@ export function TournamentDetailsPlayer({ id, tourState, wsConnected }: Props) {
     [confirm]
   );
 
+  const handleOpenMenu = useCallback(
+    (event: React.MouseEvent<HTMLElement>, index: number) => {
+      setMenuIndex(index);
+      popover.onOpen(event);
+    },
+    [popover]
+  );
+
+  // Không reset menuIndex khi đóng để menu không đổi nội dung trong lúc đang fade-out.
+  const handleCloseMenu = useCallback(() => {
+    popover.onClose();
+  }, [popover]);
+
+  const handleMenuReBuy = useCallback(() => {
+    if (menuIndex === null || !isRegOpen) return;
+    const index = menuIndex;
+    handleCloseMenu();
+    handleChangeReBuy(index, 1);
+  }, [menuIndex, isRegOpen, handleCloseMenu, handleChangeReBuy]);
+
+  const handleMenuInfo = useCallback(() => {
+    if (menuIndex === null) return;
+    setInfoEntry(entries[menuIndex] ?? null);
+    handleCloseMenu();
+    infoDialog.onTrue();
+  }, [menuIndex, entries, handleCloseMenu, infoDialog]);
+
+  const handleMenuAddOn = useCallback(() => {
+    if (menuIndex === null) return;
+    setAddOnEntry(entries[menuIndex] ?? null);
+    handleCloseMenu();
+    addOnDialog.onTrue();
+  }, [menuIndex, entries, handleCloseMenu, addOnDialog]);
+
+  /**
+   * Thêm một lần add-on cho entry đang chọn.
+   * Tìm lại entry theo playerId (hoặc tên) trong danh sách MỚI NHẤT, vì danh sách có thể
+   * đã đổi thứ tự / cập nhật real-time trong lúc dialog mở. Throw để dialog giữ mở khi lỗi.
+   */
+  const updateAddOn = useCallback(
+    async (
+      makeAddOn: (current: number[]) => number[],
+      successMessage: string,
+      errorMessage: string
+    ) => {
+      if (!addOnEntry) return;
+
+      const index = entries.findIndex((e) =>
+        addOnEntry.playerId != null ? e.playerId === addOnEntry.playerId : e.name === addOnEntry.name
+      );
+      if (index === -1) {
+        toast.error('Player is no longer in this tournament!');
+        throw new Error('Entry not found');
+      }
+
+      try {
+        const updated = entries.map((e, i) =>
+          i === index ? { ...e, addOn: makeAddOn(e.addOn ?? []) } : e
+        );
+        await tourService.updateEntries(id, updated);
+        controlMutate();
+        toast.success(successMessage);
+      } catch (error) {
+        console.error(error);
+        toast.error(getErrorMessage(error, errorMessage));
+        throw error;
+      }
+    },
+    [addOnEntry, entries, id, controlMutate]
+  );
+
+  const handleSubmitAddOn = useCallback(
+    (chips: number) =>
+      updateAddOn((current) => [...current, chips], `Added ${fNumber(chips)} chips!`, 'Add-on failed!'),
+    [updateAddOn]
+  );
+
+  /** Xoá toàn bộ add-on của entry đang chọn. */
+  const handleResetAddOn = useCallback(
+    () => updateAddOn(() => [], 'Add-on reset!', 'Reset add-on failed!'),
+    [updateAddOn]
+  );
+
+  const handleMenuDelete = useCallback(() => {
+    if (menuIndex === null) return;
+    const index = menuIndex;
+    handleCloseMenu();
+    handleOpenDelete(index);
+  }, [menuIndex, handleCloseMenu, handleOpenDelete]);
+
   const handleDeleteEntry = useCallback(async () => {
     if (deleteIndex === null) return;
 
@@ -142,7 +269,7 @@ export function TournamentDetailsPlayer({ id, tourState, wsConnected }: Props) {
       toast.success('Delete success!');
     } catch (error) {
       console.error(error);
-      toast.error('Delete failed!');
+      toast.error(getErrorMessage(error, 'Delete failed!'));
     }
   }, [deleteIndex, entries, id, controlMutate, confirm]);
 
@@ -169,18 +296,20 @@ export function TournamentDetailsPlayer({ id, tourState, wsConnected }: Props) {
           ) : entries.length === 0 ? (
             <EmptyContent title="No players" description="No players have been added to this tournament yet." />
           ) : (
-            <Table size="small" sx={{ minWidth: 480 }}>
+            <Table size="small" sx={{ minWidth: 600 }}>
               <TableHead>
                 <TableRow>
                   <TableCell sx={{ width: 56 }} />
                   <TableCell>Player Name</TableCell>
-                  <TableCell align="center" sx={{ width: 100 }}>
-                    Re-buy
+                  <TableCell align="right" sx={{ width: 120 }}>
+                    Add-on
                   </TableCell>
                   <TableCell align="right" sx={{ width: 120 }}>
                     In Game
                   </TableCell>
-                  <TableCell align="right" sx={{ width: 56 }} />
+                  <TableCell align="right" sx={{ width: 88 }}>
+                    Actions
+                  </TableCell>
                 </TableRow>
               </TableHead>
 
@@ -197,30 +326,24 @@ export function TournamentDetailsPlayer({ id, tourState, wsConnected }: Props) {
                       </Avatar>
                     </TableCell>
 
-                    <TableCell>{entry.name || '—'}</TableCell>
-
-                    <TableCell align="center">
-                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
-                        <IconButton
-                          size="small"
-                          onClick={() => handleChangeReBuy(index, -1)}
-                          disabled={togglingEntry === index}
-                          sx={{ p: 0.25 }}
+                    <TableCell>
+                      {entry.name || '—'}
+                      {(entry.reBuyCount ?? 0) > 0 && (
+                        <Typography
+                          component="span"
+                          variant="body2"
+                          sx={{ ml: 0.5, color: 'text.secondary' }}
                         >
-                          <Iconify icon="mingcute:minimize-line" width={16} />
-                        </IconButton>
-                        <Typography variant="body2" sx={{ minWidth: 20, textAlign: 'center' }}>
-                          {entry.reBuyCount ?? 0}
+                          ({entry.reBuyCount})
                         </Typography>
-                        <IconButton
-                          size="small"
-                          onClick={() => handleChangeReBuy(index, 1)}
-                          disabled={togglingEntry === index}
-                          sx={{ p: 0.25 }}
-                        >
-                          <Iconify icon="mingcute:add-line" width={16} />
-                        </IconButton>
-                      </Box>
+                      )}
+                    </TableCell>
+
+                    <TableCell
+                      align="right"
+                      sx={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}
+                    >
+                      {sumAddOn(entry.addOn) > 0 ? fNumber(sumAddOn(entry.addOn)) : '—'}
                     </TableCell>
 
                     <TableCell align="right">
@@ -236,8 +359,12 @@ export function TournamentDetailsPlayer({ id, tourState, wsConnected }: Props) {
                     </TableCell>
 
                     <TableCell align="right">
-                      <IconButton color="error" onClick={() => handleOpenDelete(index)}>
-                        <Iconify icon="mingcute:delete-2-line" />
+                      <IconButton
+                        color={popover.open && menuIndex === index ? 'inherit' : 'default'}
+                        onClick={(event) => handleOpenMenu(event, index)}
+                        disabled={togglingEntry === index}
+                      >
+                        <Iconify icon="eva:more-vertical-fill" />
                       </IconButton>
                     </TableCell>
                   </TableRow>
@@ -248,11 +375,55 @@ export function TournamentDetailsPlayer({ id, tourState, wsConnected }: Props) {
         </Card>
       </Box>
 
+      <CustomPopover
+        open={popover.open}
+        anchorEl={popover.anchorEl}
+        onClose={handleCloseMenu}
+        slotProps={{ arrow: { placement: 'right-top' } }}
+      >
+        <MenuList>
+          <MenuItem onClick={handleMenuInfo}>
+            <Iconify icon="solar:info-circle-bold" />
+            Info
+          </MenuItem>
+
+          <MenuItem onClick={handleMenuReBuy} disabled={!isRegOpen}>
+            <Iconify icon="mingcute:add-line" />
+            {isRegOpen ? 'Re-buy' : 'Re-buy (reg closed)'}
+          </MenuItem>
+
+          <MenuItem onClick={handleMenuAddOn}>
+            <Iconify icon="solar:add-circle-bold" />
+            Add-on
+          </MenuItem>
+
+          <MenuItem onClick={handleMenuDelete} sx={{ color: 'error.main' }}>
+            <Iconify icon="mingcute:delete-2-line" />
+            Delete
+          </MenuItem>
+        </MenuList>
+      </CustomPopover>
+
+      <TournamentPlayerInfoDialog
+        open={infoDialog.value}
+        onClose={infoDialog.onFalse}
+        entry={infoEntry}
+      />
+
+      <TournamentPlayerAddOnDialog
+        open={addOnDialog.value}
+        onClose={addOnDialog.onFalse}
+        entry={addOnEntry}
+        onSubmit={handleSubmitAddOn}
+        onReset={handleResetAddOn}
+      />
+
       <TournamentPlayerDialog
         open={dialog.value}
         onClose={dialog.onFalse}
         currentEntries={entries}
         onSave={handleUpdateEntries}
+        allowAddNew={isRegOpen}
       />
 
       <ConfirmDialog

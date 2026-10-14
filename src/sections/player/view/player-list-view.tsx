@@ -40,6 +40,7 @@ import { PlayerDetailsDialog } from '../player-details-dialog';
 const TABLE_HEAD = [
   { id: 'avatar', label: '', width: 80 },
   { id: 'name', label: 'Name' },
+  { id: 'point', label: 'Point', width: 120, align: 'right' },
   { id: 'createdAt', label: 'Created at', width: 200 },
   { id: '', label: '', width: 88 },
 ];

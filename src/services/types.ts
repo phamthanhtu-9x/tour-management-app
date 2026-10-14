@@ -67,10 +67,14 @@ export type UserProfile = {
 // ---------------------------------- Tour ----------------------------------
 
 export type TourControlEntry = {
+  /** Id người chơi trong bảng players (không có nếu là khách vãng lai). PHẢI giữ nguyên khi ghi lại entries. */
+  playerId?: number;
   name?: string;
   avatar?: string;
   isEliminated?: boolean;
   reBuyCount?: number;
+  /** Số chip của từng lần add-on (mỗi phần tử = 1 lần). Mặc định []. PHẢI giữ nguyên khi ghi lại entries. */
+  addOn?: number[];
 };
 
 export type TourControlData = {
@@ -83,6 +87,12 @@ export type TourControlData = {
   gtd?: string;
   /** Số giây đã trôi qua của level hiện tại (từ REST control) */
   elapsedSeconds?: number;
+  /** Tour đang pause hay không (nếu REST control có trả về). */
+  isPaused?: boolean;
+  /** Idx của level mà đăng ký kết thúc. null = không giới hạn. */
+  regEnd?: number | null;
+  /** Đăng ký còn mở hay không (server tính). */
+  isRegOpen?: boolean;
   [key: string]: unknown;
 };
 
@@ -108,8 +118,11 @@ export type UpdateTourDto = {
   title?: string;
   desc?: string;
   startingStack?: number;
-  /** Idx của level mà thời gian đăng ký (re-entry) kết thúc */
-  regEnd?: number;
+  /**
+   * Idx của level mà thời gian đăng ký (re-entry) kết thúc.
+   * Số nguyên >= 1 và <= số level; gửi `null` để bỏ giới hạn.
+   */
+  regEnd?: number | null;
   /** Danh sách level của tour (nếu có, sẽ thay thế toàn bộ level hiện tại) */
   levels?: TourLevelItemDto[];
 };
@@ -148,11 +161,15 @@ export type SetDefaultLevelDto = {
 export type InsertPlayerDto = {
   name?: string;
   avatar?: string;
+  /** Điểm của người chơi (số thực, không âm). Mặc định 0. */
+  point?: number;
 };
 
 export type UpdatePlayerDto = {
   name?: string;
   avatar?: string;
+  /** Điểm của người chơi (số thực, không âm). */
+  point?: number;
 };
 
 // ---------------------------------- Upload ----------------------------------

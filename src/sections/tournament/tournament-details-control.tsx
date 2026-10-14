@@ -14,6 +14,7 @@ import InputAdornment from '@mui/material/InputAdornment';
 import CircularProgress from '@mui/material/CircularProgress';
 
 import { tourService } from 'src/services';
+import { getErrorMessage } from 'src/utils/get-error-message';
 import { useGetTourLevels, useGetTourControl } from 'src/actions/tournament';
 
 import { toast } from 'src/components/snackbar';
@@ -22,6 +23,11 @@ import { EmptyContent } from 'src/components/empty-content';
 
 import { TournamentControlPanel } from './tournament-control-panel';
 import { TournamentTourTimer } from './tournament-tour-timer';
+
+// ----------------------------------------------------------------------
+
+/** Chu kỳ gọi lại REST control khi mất WebSocket (ms). */
+const CONTROL_POLL_MS = 5000;
 
 // ----------------------------------------------------------------------
 
@@ -50,7 +56,15 @@ export function TournamentDetailsControl({
   wsConnected,
 }: Props) {
   const { levels: restLevels, levelsLoading } = useGetTourLevels(id);
-  const { control: restControl, controlMutate } = useGetTourControl(id);
+  // Mất socket → tự gọi lại REST control định kỳ để không hiển thị trạng thái cũ.
+  const { control: restControl, controlMutate } = useGetTourControl(id, {
+    refreshInterval: wsConnected ? 0 : CONTROL_POLL_MS,
+  });
+
+  // Socket vừa rớt → lấy lại REST control ngay thay vì chờ chu kỳ polling.
+  useEffect(() => {
+    if (!wsConnected) controlMutate();
+  }, [wsConnected, controlMutate]);
 
   // ---- Merge socket data với REST data: socket ưu tiên khi connected ----
   const control: TourControlData | null =
@@ -58,11 +72,16 @@ export function TournamentDetailsControl({
       ? ({
           currentLevel: tourState.currentLevel,
           isRunning: tourState.isRunning,
+          isPaused: tourState.isPaused,
+          regEnd: tourState.regEnd,
+          isRegOpen: tourState.isRegOpen,
           entries: tourState.entries.map((e) => ({
+            playerId: e.playerId,
             name: e.name,
             avatar: e.avatar,
             isEliminated: e.isEliminated,
             reBuyCount: e.reBuyCount,
+            addOn: e.addOn ?? [],
           })),
           gtd: tourState.gtd,
         } as TourControlData)
@@ -105,7 +124,9 @@ export function TournamentDetailsControl({
     [levels]
   );
 
-  const currentRegEnd = tournament?.regEnd ?? null;
+  // regEnd: ưu tiên control (socket / REST control) vì được cập nhật real-time; fallback tournament.
+  const currentRegEnd =
+    control?.regEnd !== undefined ? control.regEnd : (tournament?.regEnd ?? null);
 
   const handleUpdateRegEnd = useCallback(
     async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -114,17 +135,19 @@ export function TournamentDetailsControl({
 
       setIsSubmitting(true);
       try {
-        await tourService.updateTour(id, { regEnd: newRegEnd ?? undefined });
+        // Gửi null để bỏ giới hạn đăng ký (server broadcast tour-state cho mọi thiết bị).
+        await tourService.updateTour(id, { regEnd: newRegEnd });
         tournamentMutate();
+        if (!wsConnected) controlMutate();
         toast.success('Reg end updated!');
       } catch (error) {
         console.error(error);
-        toast.error('Update failed!');
+        toast.error(getErrorMessage(error, 'Update failed!'));
       } finally {
         setIsSubmitting(false);
       }
     },
-    [id, tournamentMutate]
+    [id, tournamentMutate, wsConnected, controlMutate]
   );
 
   const handleChangeGtd = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
@@ -168,6 +191,7 @@ export function TournamentDetailsControl({
         id={id}
         levels={levels}
         isRunning={control?.isRunning ?? false}
+        isPaused={control?.isPaused}
         controlMutate={controlMutate}
         tourState={tourState}
         wsConnected={wsConnected}
