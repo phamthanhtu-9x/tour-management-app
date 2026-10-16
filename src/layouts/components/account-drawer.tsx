@@ -6,9 +6,7 @@ import { useState, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
-import Avatar from '@mui/material/Avatar';
 import Drawer from '@mui/material/Drawer';
-import Tooltip from '@mui/material/Tooltip';
 import MenuItem from '@mui/material/MenuItem';
 import { useTheme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
@@ -17,15 +15,15 @@ import IconButton from '@mui/material/IconButton';
 import { paths } from 'src/routes/paths';
 import { useRouter, usePathname } from 'src/routes/hooks';
 
-import { _mock } from 'src/_mock';
 import { varAlpha } from 'src/theme/styles';
+import { getFileUrl } from 'src/utils/file-url';
 
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 import { AnimateAvatar } from 'src/components/animate';
 
-import { useMockedUser } from 'src/auth/hooks';
+import { useAuthContext } from 'src/auth/hooks';
 
 import { AccountButton } from './account-button';
 import { SignOutButton } from './sign-out-button';
@@ -49,7 +47,13 @@ export function AccountDrawer({ data = [], sx, ...other }: AccountDrawerProps) {
 
   const pathname = usePathname();
 
-  const { user } = useMockedUser();
+  const { user } = useAuthContext();
+
+  // Thông tin user đang đăng nhập (từ GET /users/me)
+  const fullName = [user?.lastName, user?.firstName].filter(Boolean).join(' ');
+  const displayName: string = user?.displayName || fullName || user?.email || '';
+  const email: string = user?.email ?? '';
+  const photoURL = getFileUrl(user?.avatar);
 
   const [open, setOpen] = useState(false);
 
@@ -75,7 +79,7 @@ export function AccountDrawer({ data = [], sx, ...other }: AccountDrawerProps) {
     <AnimateAvatar
       width={96}
       slotProps={{
-        avatar: { src: user?.photoURL, alt: user?.displayName },
+        avatar: { src: photoURL, alt: displayName },
         overlay: {
           border: 2,
           spacing: 3,
@@ -83,7 +87,7 @@ export function AccountDrawer({ data = [], sx, ...other }: AccountDrawerProps) {
         },
       }}
     >
-      {user?.displayName?.charAt(0).toUpperCase()}
+      {displayName.charAt(0).toUpperCase()}
     </AnimateAvatar>
   );
 
@@ -91,8 +95,8 @@ export function AccountDrawer({ data = [], sx, ...other }: AccountDrawerProps) {
     <>
       <AccountButton
         onClick={handleOpenDrawer}
-        photoURL={user?.photoURL}
-        displayName={user?.displayName}
+        photoURL={photoURL ?? ''}
+        displayName={displayName}
         sx={sx}
         {...other}
       />
@@ -115,43 +119,24 @@ export function AccountDrawer({ data = [], sx, ...other }: AccountDrawerProps) {
           <Stack alignItems="center" sx={{ pt: 8 }}>
             {renderAvatar}
 
-            <Typography variant="subtitle1" noWrap sx={{ mt: 2 }}>
-              {user?.displayName}
+            <Typography variant="subtitle1" noWrap sx={{ mt: 2, maxWidth: 1, px: 2.5 }}>
+              {displayName}
             </Typography>
 
-            <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }} noWrap>
-              {user?.email}
-            </Typography>
-          </Stack>
-
-          <Stack direction="row" spacing={1} flexWrap="wrap" justifyContent="center" sx={{ p: 3 }}>
-            {[...Array(3)].map((_, index) => (
-              <Tooltip
-                key={_mock.fullName(index + 1)}
-                title={`Switch to: ${_mock.fullName(index + 1)}`}
+            {email && email !== displayName && (
+              <Typography
+                variant="body2"
+                sx={{ color: 'text.secondary', mt: 0.5, maxWidth: 1, px: 2.5 }}
+                noWrap
               >
-                <Avatar
-                  alt={_mock.fullName(index + 1)}
-                  src={_mock.image.avatar(index + 1)}
-                  onClick={() => {}}
-                />
-              </Tooltip>
-            ))}
-
-            <Tooltip title="Add account">
-              <IconButton
-                sx={{
-                  bgcolor: varAlpha(theme.vars.palette.grey['500Channel'], 0.08),
-                  border: `dashed 1px ${varAlpha(theme.vars.palette.grey['500Channel'], 0.32)}`,
-                }}
-              >
-                <Iconify icon="mingcute:add-line" />
-              </IconButton>
-            </Tooltip>
+                {email}
+              </Typography>
+            )}
           </Stack>
 
           <Stack
             sx={{
+              mt: 3,
               py: 3,
               px: 2.5,
               borderTop: `dashed 1px ${theme.vars.palette.divider}`,
