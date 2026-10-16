@@ -32,7 +32,7 @@ type Props = {
 };
 
 /**
- * Thông tin người chơi của một entry trong tour: tên, avatar, point.
+ * Thông tin người chơi của một entry trong tour: tên, avatar, số điện thoại, point.
  * - Có playerId → lấy chi tiết từ `GET /players/:id` (point chỉ có ở đây).
  * - Không có playerId (khách vãng lai) hoặc player đã bị xoá (404) → hiển thị dữ liệu của entry.
  */
@@ -81,6 +81,7 @@ export function TournamentPlayerInfoDialog({ open, onClose, entry }: Props) {
 
             <Stack spacing={2} sx={{ width: 1 }}>
               <InfoRow label="Name" value={displayName} />
+              <InfoRow label="Phone" value={player?.phone || '—'} />
               <InfoRow label="Point" value={point} />
             </Stack>
           </Stack>

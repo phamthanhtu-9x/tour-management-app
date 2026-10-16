@@ -9,6 +9,12 @@ export type PaginationParams = {
   limit?: number;
 };
 
+/** Tham số `GET /players`: phân trang + tìm theo tên (không dấu) hoặc số điện thoại. */
+export type PlayerListParams = PaginationParams & {
+  /** Tối đa 100 ký tự. */
+  search?: string;
+};
+
 /** Envelope chuẩn mà backend trả về cho mọi response */
 export type ApiResponse<T> = {
   statusCode: number;
@@ -184,6 +190,8 @@ export type InsertPlayerDto = {
   avatar?: string;
   /** Điểm của người chơi (số thực, không âm). Mặc định 0. */
   point?: number;
+  /** Số điện thoại: 8–15 chữ số, có thể có '+' ở đầu; không trùng player khác. null/"" = bỏ trống. */
+  phone?: string | null;
 };
 
 export type UpdatePlayerDto = {
@@ -191,6 +199,8 @@ export type UpdatePlayerDto = {
   avatar?: string;
   /** Điểm của người chơi (số thực, không âm). */
   point?: number;
+  /** Số điện thoại: 8–15 chữ số, có thể có '+' ở đầu; không trùng player khác. null/"" = bỏ trống. */
+  phone?: string | null;
 };
 
 // ---------------------------------- Upload ----------------------------------

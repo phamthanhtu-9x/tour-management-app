@@ -7,6 +7,8 @@ import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useInView } from 'react-intersection-observer';
 
 import Box from '@mui/material/Box';
+import TextField from '@mui/material/TextField';
+import InputAdornment from '@mui/material/InputAdornment';
 import Dialog from '@mui/material/Dialog';
 import Button from '@mui/material/Button';
 import Avatar from '@mui/material/Avatar';
@@ -17,8 +19,11 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import CircularProgress from '@mui/material/CircularProgress';
 
+import { useDebounce } from 'src/hooks/use-debounce';
+
 import { useGetPlayers } from 'src/actions/player';
 import { getFileUrl } from 'src/utils/file-url';
+import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 
 // ----------------------------------------------------------------------
@@ -67,28 +72,50 @@ export function TournamentPlayerDialog({
 }: Props) {
   const [page, setPage] = useState(1);
 
+  // Tìm theo tên (không dấu) hoặc số điện thoại – đợi 300ms sau khi ngừng gõ.
+  const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebounce(searchQuery.trim(), 300);
+
+  // Xoá từ khoá mỗi lần mở dialog.
+  useEffect(() => {
+    if (open) setSearchQuery('');
+  }, [open]);
+
   // Only fetch when dialog is open
   const { players, playersTotal, playersLoading } = useGetPlayers(
-    open ? { page, limit: 10 } : null
+    open ? { page, limit: 10, search: debouncedSearch || undefined } : null
   );
 
   // ---- Accumulate players across pages -----------------------------------
 
   const [allPlayers, setAllPlayers] = useState<IPlayerItem[]>([]);
 
-  // Reset when dialog opens
+  /**
+   * Mọi player đã tải trong lần mở dialog này (qua mọi từ khoá tìm kiếm).
+   * Dùng khi lưu: player được chọn ở lần tìm trước vẫn được thêm dù không còn trong kết quả hiện tại.
+   */
+  const knownPlayersRef = useRef<Map<number, IPlayerItem>>(new Map());
+
+  // Mở dialog → làm mới toàn bộ.
+  useEffect(() => {
+    if (open) knownPlayersRef.current = new Map();
+  }, [open]);
+
+  // Mở dialog / đổi từ khoá → tải lại từ trang 1.
   useEffect(() => {
     if (open) {
       setAllPlayers([]);
       setPage(1);
       prevPlayersRef.current = [];
     }
-  }, [open]);
+  }, [open, debouncedSearch]);
 
   // Append new data when players change
   const prevPlayersRef = useRef<IPlayerItem[]>([]);
   useEffect(() => {
     if (!players.length) return;
+
+    players.forEach((p) => knownPlayersRef.current.set(p.id, p));
 
     const prev = prevPlayersRef.current;
     const prevIds = new Set(prev.map((p) => p.id));
@@ -169,6 +196,7 @@ export function TournamentPlayerDialog({
   const handleSave = useCallback(async () => {
     setSaving(true);
     try {
+      const knownPlayers = Array.from(knownPlayersRef.current.values());
       const updated: TourControlEntry[] = [];
       const added: AddEntryDto[] = [];
       const removed: TourControlEntry[] = [];
@@ -181,7 +209,7 @@ export function TournamentPlayerDialog({
 
         // Entry cũ (chưa có playerId) nhưng khớp tên một player → bổ sung playerId.
         const matched =
-          e.playerId == null && e.name ? allPlayers.find((p) => p.name === e.name) : undefined;
+          e.playerId == null && e.name ? knownPlayers.find((p) => p.name === e.name) : undefined;
         const stillSelected =
           selectedKeys.has(key) || (!!matched && selectedKeys.has(playerKey(matched.id)));
         if (!stillSelected) {
@@ -195,7 +223,7 @@ export function TournamentPlayerDialog({
       });
 
       // 2. Thêm player mới được chọn (gửi kèm playerId).
-      allPlayers.forEach((player) => {
+      knownPlayers.forEach((player) => {
         if (keptPlayerIds.has(player.id)) return;
         if (!selectedKeys.has(playerKey(player.id))) return;
         if (isInTour(player)) return;
@@ -216,7 +244,7 @@ export function TournamentPlayerDialog({
     } finally {
       setSaving(false);
     }
-  }, [selectedKeys, currentEntries, allPlayers, isInTour, onSave]);
+  }, [selectedKeys, currentEntries, isInTour, onSave]);
 
   const handleCancel = useCallback(() => {
     onClose();
@@ -250,6 +278,23 @@ export function TournamentPlayerDialog({
           </Typography>
         )}
 
+        <Box sx={{ px: 2, pb: 1.5 }}>
+          <TextField
+            fullWidth
+            size="small"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value.slice(0, 100))}
+            placeholder="Search by name or phone..."
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Iconify icon="eva:search-fill" sx={{ color: 'text.disabled' }} />
+                </InputAdornment>
+              ),
+            }}
+          />
+        </Box>
+
         <Scrollbar sx={{ maxHeight: 400, overflowY: 'auto' }}>
         {isFirstPageLoading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
@@ -258,7 +303,9 @@ export function TournamentPlayerDialog({
         ) : !allPlayers.length ? (
           <Box sx={{ py: 4, textAlign: 'center' }}>
             <Typography variant="body2" color="text.secondary">
-              No players found. Please create players first.
+              {debouncedSearch
+                ? `No players match "${debouncedSearch}".`
+                : 'No players found. Please create players first.'}
             </Typography>
           </Box>
         ) : (

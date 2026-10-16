@@ -1,5 +1,5 @@
 import type { IPlayerItem } from 'src/types/player';
-import type { PaginationParams } from 'src/services/types';
+import type { PlayerListParams } from 'src/services/types';
 
 import useSWR from 'swr';
 import { useMemo } from 'react';
@@ -16,8 +16,8 @@ const swrOptions = {
 
 // ----------------------------------------------------------------------
 
-/** Danh sách người chơi (có phân trang). Truyền null để skip fetch. */
-export function useGetPlayers(params?: PaginationParams | null) {
+/** Danh sách người chơi (phân trang, `search` theo tên / số điện thoại). Truyền null để skip fetch. */
+export function useGetPlayers(params?: PlayerListParams | null) {
   const key: any = params ? ['players', params] : null;
 
   const { data, isLoading, error, isValidating, mutate } = useSWR(

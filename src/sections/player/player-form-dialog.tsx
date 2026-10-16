@@ -18,17 +18,32 @@ import { playerService, uploadService } from 'src/services';
 
 import { fData } from 'src/utils/format-number';
 import { getFileUrl } from 'src/utils/file-url';
+import { getErrorMessage } from 'src/utils/get-error-message';
 
 import { toast } from 'src/components/snackbar';
-import { Form, Field, schemaHelper } from 'src/components/hook-form';
+import { Form, Field } from 'src/components/hook-form';
 
 // ----------------------------------------------------------------------
+
+/** Bỏ các ký tự phân cách mà server cũng tự bỏ. */
+const normalizePhone = (value: string) => value.replace(/[\s.\-()]/g, '');
+
+const PHONE_REGEX = /^\+?\d{8,15}$/;
 
 export type PlayerSchemaType = zod.infer<typeof PlayerSchema>;
 
 export const PlayerSchema = zod.object({
   name: zod.string().min(1, { message: 'Name is required!' }),
-  avatar: schemaHelper.file({ message: { required_error: 'Avatar is required!' } }),
+  // Không bắt buộc: player có thể không có avatar (kể cả khi tạo mới).
+  avatar: zod.custom<File | string | null>().nullable().optional(),
+  // Không bắt buộc. Cùng luật với server: 8–15 chữ số, có thể có '+' ở đầu;
+  // khoảng trắng, '.', '-', '(', ')' được bỏ qua khi kiểm tra.
+  phone: zod
+    .string()
+    .trim()
+    .refine((value) => value === '' || PHONE_REGEX.test(normalizePhone(value)), {
+      message: 'Phone must have 8–15 digits and may start with "+"!',
+    }),
   point: zod
     .number({ invalid_type_error: 'Point must be a number!' })
     .min(0, { message: 'Point must be greater than or equal to 0!' })
@@ -53,6 +68,7 @@ export function PlayerFormDialog({ open, onClose, currentPlayer, onSuccess }: Pr
       name: currentPlayer?.name || '',
       // Avatar lưu dạng đường dẫn tương đối ("uploads/abc.jpg") → ghép server URL để preview hiển thị được.
       avatar: getFileUrl(currentPlayer?.avatar) || null,
+      phone: currentPlayer?.phone ?? '',
       point: currentPlayer?.point ?? 0,
     }),
     [currentPlayer]
@@ -88,7 +104,13 @@ export function PlayerFormDialog({ open, onClose, currentPlayer, onSuccess }: Pr
         avatarUrl = currentPlayer?.avatar ?? data.avatar;
       }
 
-      const body = { name: data.name, avatar: avatarUrl, point: data.point ?? 0 };
+      const body = {
+        name: data.name,
+        avatar: avatarUrl,
+        // Trống → null để bỏ số điện thoại (kể cả khi sửa và xoá số cũ).
+        phone: data.phone ? data.phone : null,
+        point: data.point ?? 0,
+      };
 
       if (isEdit && currentPlayer) {
         await playerService.updatePlayer(currentPlayer.id, body);
@@ -101,7 +123,8 @@ export function PlayerFormDialog({ open, onClose, currentPlayer, onSuccess }: Pr
       onClose();
     } catch (error) {
       console.error(error);
-      toast.error('Something went wrong!');
+      // Hiện lỗi của server, vd số điện thoại trùng với player khác.
+      toast.error(getErrorMessage(error, 'Something went wrong!'));
     }
   });
 
@@ -134,6 +157,15 @@ export function PlayerFormDialog({ open, onClose, currentPlayer, onSuccess }: Pr
           </Box>
 
           <Field.Text name="name" label="Name" sx={{ mb: 2.5 }} />
+
+          <Field.Text
+            name="phone"
+            label="Phone"
+            type="tel"
+            placeholder="0912345678"
+            InputLabelProps={{ shrink: true }}
+            sx={{ mb: 2.5 }}
+          />
 
           <Field.Text
             name="point"

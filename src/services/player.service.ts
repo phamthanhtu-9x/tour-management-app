@@ -1,12 +1,12 @@
-import type { InsertPlayerDto, UpdatePlayerDto, PaginationParams } from './types';
+import type { InsertPlayerDto, UpdatePlayerDto, PlayerListParams } from './types';
 
 import { apiClient } from './api-client';
 
 // ----------------------------------------------------------------------
 
 export const playerService = {
-  /** GET /players — Lấy danh sách người chơi (có phân trang) */
-  getPlayers: (params?: PaginationParams) =>
+  /** GET /players — Danh sách người chơi (phân trang, `search` theo tên hoặc số điện thoại) */
+  getPlayers: (params?: PlayerListParams) =>
     apiClient.get('/players', { params }).then((res) => res.data),
 
   /** POST /players — Tạo mới một người chơi */

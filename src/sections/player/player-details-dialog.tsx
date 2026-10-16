@@ -60,6 +60,7 @@ export function PlayerDetailsDialog({ open, onClose, playerId, fallback }: Props
             <Stack spacing={2} sx={{ width: 1 }}>
               <DetailRow label="ID" value={data ? `#${data.id}` : '—'} />
               <DetailRow label="Name" value={displayName} />
+              <DetailRow label="Phone" value={data?.phone || '—'} />
               <DetailRow label="Created at" value={fDateTime(data?.createdAt) ?? '—'} />
               <DetailRow label="Updated at" value={fDateTime(data?.updatedAt) ?? '—'} />
             </Stack>

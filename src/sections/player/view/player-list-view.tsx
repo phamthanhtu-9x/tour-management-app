@@ -2,16 +2,20 @@
 
 import type { IPlayerItem } from 'src/types/player';
 
-import { useState, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
+import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
 import TableBody from '@mui/material/TableBody';
+import TextField from '@mui/material/TextField';
+import InputAdornment from '@mui/material/InputAdornment';
 
 import { paths } from 'src/routes/paths';
 
 import { useBoolean } from 'src/hooks/use-boolean';
+import { useDebounce } from 'src/hooks/use-debounce';
 
 import { useGetPlayers } from 'src/actions/player';
 import { playerService } from 'src/services';
@@ -50,9 +54,19 @@ const TABLE_HEAD = [
 export function PlayerListView() {
   const table = useTable({ defaultOrderBy: 'name', defaultRowsPerPage: 10 });
 
+  // Tìm theo tên (không dấu) hoặc số điện thoại – đợi 300ms sau khi ngừng gõ mới gọi API.
+  const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebounce(searchQuery.trim(), 300);
+
+  const { onResetPage } = table;
+  useEffect(() => {
+    onResetPage();
+  }, [debouncedSearch, onResetPage]);
+
   const { players, playersTotal, playersLoading, playersEmpty, playersMutate } = useGetPlayers({
     page: table.page + 1,
     limit: table.rowsPerPage,
+    search: debouncedSearch || undefined,
   });
 
   const formDialog = useBoolean();
@@ -127,6 +141,22 @@ export function PlayerListView() {
         />
 
         <Card>
+          <Box sx={{ p: 2.5 }}>
+            <TextField
+              fullWidth
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value.slice(0, 100))}
+              placeholder="Search by name or phone..."
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Iconify icon="eva:search-fill" sx={{ color: 'text.disabled' }} />
+                  </InputAdornment>
+                ),
+              }}
+            />
+          </Box>
+
           <Scrollbar>
             <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 640 }}>
               <TableHeadCustom headLabel={TABLE_HEAD} rowCount={players.length} />
