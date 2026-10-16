@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+<defs><linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+  <stop offset="0" stop-color="#FBE7A6"/><stop offset=".45" stop-color="#E2B456"/>
+  <stop offset=".55" stop-color="#C9952E"/><stop offset="1" stop-color="#F0CF7A"/></linearGradient>
+<radialGradient id="felt" cx=".5" cy=".42" r=".6"><stop offset="0" stop-color="#C24A63"/><stop offset="1" stop-color="#6E1A2C"/></radialGradient></defs>
+<circle cx="256" cy="256" r="248" fill="#8E2238"/>
+<rect x="238" y="16" width="36" height="56" rx="5" fill="#F7F1E6" transform="rotate(0 256 256)"/><rect x="238" y="16" width="36" height="56" rx="5" fill="#F7F1E6" transform="rotate(45 256 256)"/><rect x="238" y="16" width="36" height="56" rx="5" fill="#F7F1E6" transform="rotate(90 256 256)"/><rect x="238" y="16" width="36" height="56" rx="5" fill="#F7F1E6" transform="rotate(135 256 256)"/><rect x="238" y="16" width="36" height="56" rx="5" fill="#F7F1E6" transform="rotate(180 256 256)"/><rect x="238" y="16" width="36" height="56" rx="5" fill="#F7F1E6" transform="rotate(225 256 256)"/><rect x="238" y="16" width="36" height="56" rx="5" fill="#F7F1E6" transform="rotate(270 256 256)"/><rect x="238" y="16" width="36" height="56" rx="5" fill="#F7F1E6" transform="rotate(315 256 256)"/>
+<circle cx="256" cy="256" r="182" fill="url(#felt)"/>
+<circle cx="256" cy="256" r="182" fill="none" stroke="url(#gold)" stroke-width="12"/>
+<path transform="translate(151 146) scale(2.1)" d="M50 0C50 0 0 38 0 62C0 78 12 89 27 89C37 89 44 84 47 78C46 89 40 96 31 100H69C60 96 54 89 53 78C56 84 63 89 73 89C88 89 100 78 100 62C100 38 50 0 50 0Z" fill="url(#gold)"/>
+</svg>

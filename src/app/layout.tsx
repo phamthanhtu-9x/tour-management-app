@@ -43,12 +43,14 @@ export const viewport: Viewport = {
 };
 
 export const metadata = {
+  title: CONFIG.appName,
+  applicationName: CONFIG.appName,
   icons: [
-    {
-      rel: 'icon',
-      url: `${CONFIG.assetsDir}/favicon.ico`,
-    },
+    { rel: 'icon', url: `${CONFIG.assetsDir}/favicon.ico`, sizes: 'any' },
+    { rel: 'icon', url: `${CONFIG.assetsDir}/logo/logo-mark.svg`, type: 'image/svg+xml' },
+    { rel: 'apple-touch-icon', url: `${CONFIG.assetsDir}/apple-touch-icon.png`, sizes: '180x180' },
   ],
+  manifest: `${CONFIG.assetsDir}/manifest.webmanifest`,
 };
 
 type Props = {

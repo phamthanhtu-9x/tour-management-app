@@ -68,14 +68,6 @@ export function TournamentDetailsClock({
   // ---- Nền Clock (lưu trên trình duyệt của máy này, theo từng tour) ----
   const { background, changeBackground } = useClockBackground(tournament?.id);
   const bgDialog = useBoolean();
-  /** Gắn dialog vào khung Clock khi đang fullscreen (dialog gắn vào body sẽ bị che). */
-  const [bgDialogContainer, setBgDialogContainer] = useState<HTMLElement | null>(null);
-
-  const handleOpenBgDialog = useCallback(() => {
-    const el = containerRef.current;
-    setBgDialogContainer(el && document.fullscreenElement === el ? el : null);
-    bgDialog.onTrue();
-  }, [bgDialog]);
 
   const [clockData, setClockData] = useState<CountdownTimerData | null>(null);
 
@@ -135,16 +127,23 @@ export function TournamentDetailsClock({
   // ---- GTD prize ----
   const gtdPrize = parseGtd(control?.gtd);
 
-  // ---- Fullscreen handler ----
-  const handleToggleFullscreen = useCallback(() => {
-    if (!fullscreen.value) {
-      containerRef.current?.requestFullscreen?.().catch(() => {});
-      fullscreen.onTrue();
-    } else {
-      document.exitFullscreen?.().catch(() => {});
-      fullscreen.onFalse();
-    }
-  }, [fullscreen]);
+  // ---- Fullscreen ----
+  // Chỉ có nút vào fullscreen; thoát bằng phím Esc (hoặc thao tác thoát của trình duyệt).
+  // Trạng thái lấy theo sự kiện fullscreenchange để luôn khớp với trình duyệt.
+  const { setValue: setFullscreen } = fullscreen;
+
+  useEffect(() => {
+    const handleChange = () => {
+      const el = containerRef.current;
+      setFullscreen(!!el && document.fullscreenElement === el);
+    };
+    document.addEventListener('fullscreenchange', handleChange);
+    return () => document.removeEventListener('fullscreenchange', handleChange);
+  }, [setFullscreen]);
+
+  const handleEnterFullscreen = useCallback(() => {
+    containerRef.current?.requestFullscreen?.().catch(() => {});
+  }, []);
 
   return (
     <>
@@ -166,19 +165,22 @@ export function TournamentDetailsClock({
         </Typography>
       }
       topRight={
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: '1.5cqw' }}>
-          {/* Đổi nền Clock */}
-          <Iconify
-            icon="solar:gallery-wide-bold"
-            onClick={handleOpenBgDialog}
-            sx={{ cursor: 'pointer', fontSize: '3cqw' }}
-          />
-          <Iconify
-            icon={fullscreen.value ? 'solar:quit-full-screen-bold' : 'solar:full-screen-bold'}
-            onClick={handleToggleFullscreen}
-            sx={{ cursor: 'pointer', fontSize: '3cqw' }}
-          />
-        </Box>
+        // Ẩn các nút khi đang fullscreen để màn hình trình chiếu gọn
+        fullscreen.value ? null : (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: '1.5cqw' }}>
+            {/* Đổi nền Clock */}
+            <Iconify
+              icon="solar:gallery-wide-bold"
+              onClick={bgDialog.onTrue}
+              sx={{ cursor: 'pointer', fontSize: '3cqw' }}
+            />
+            <Iconify
+              icon="solar:full-screen-bold"
+              onClick={handleEnterFullscreen}
+              sx={{ cursor: 'pointer', fontSize: '3cqw' }}
+            />
+          </Box>
+        )
       }
       left={
         <TournamentClockInfo
@@ -206,7 +208,6 @@ export function TournamentDetailsClock({
       onClose={bgDialog.onFalse}
       value={background.id}
       onChange={changeBackground}
-      container={bgDialogContainer}
     />
     </>
   );

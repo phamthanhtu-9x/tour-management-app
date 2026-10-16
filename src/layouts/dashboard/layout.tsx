@@ -10,8 +10,6 @@ import { iconButtonClasses } from '@mui/material/IconButton';
 
 import { useBoolean } from 'src/hooks/use-boolean';
 
-import { allLangs } from 'src/locales';
-
 import { Logo } from 'src/components/logo';
 import { useSettingsContext } from 'src/components/settings';
 
@@ -27,7 +25,6 @@ import { HeaderSection } from '../core/header-section';
 import { StyledDivider, useNavColorVars } from './styles';
 import { AccountDrawer } from '../components/account-drawer';
 import { SettingsButton } from '../components/settings-button';
-import { LanguagePopover } from '../components/language-popover';
 import { navData as dashboardNavData } from '../config-nav-dashboard';
 
 // ----------------------------------------------------------------------
@@ -140,8 +137,6 @@ export function DashboardLayout({ sx, children, header, data }: DashboardLayoutP
             ),
             rightArea: (
               <Box display="flex" alignItems="center" gap={{ xs: 0, sm: 0.75 }}>
-                {/* -- Language popover -- */}
-                <LanguagePopover data={allLangs} />
                 {/* -- Settings button -- */}
                 <SettingsButton />
                 {/* -- Account drawer -- */}

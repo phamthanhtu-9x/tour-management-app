@@ -10,6 +10,8 @@ import Typography from '@mui/material/Typography';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
+import { CONFIG } from 'src/config-global';
+
 import { Iconify } from 'src/components/iconify';
 
 import { useAuthContext } from 'src/auth/hooks';
@@ -162,12 +164,20 @@ export function LandingView() {
               gap: 2,
             }}
           >
-            <Typography
-              component="span"
-              sx={{ fontFamily: display, fontWeight: 800, fontSize: { xs: 22, md: 26 } }}
-            >
-              {LANDING_PRODUCT_NAME}
-            </Typography>
+            <Stack direction="row" spacing={1.25} alignItems="center">
+              <Box
+                component="img"
+                src={`${CONFIG.assetsDir}/logo/logo-single.svg`}
+                alt=""
+                sx={{ width: { xs: 36, md: 42 }, height: { xs: 36, md: 42 }, display: 'block' }}
+              />
+              <Typography
+                component="span"
+                sx={{ fontFamily: display, fontWeight: 800, fontSize: { xs: 22, md: 26 } }}
+              >
+                {LANDING_PRODUCT_NAME}
+              </Typography>
+            </Stack>
 
             <Stack direction="row" spacing={1} alignItems="center">
               {authenticated ? (
