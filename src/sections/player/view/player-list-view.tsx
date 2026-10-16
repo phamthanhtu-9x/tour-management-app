@@ -2,12 +2,14 @@
 
 import type { IPlayerItem } from 'src/types/player';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
+import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
+import LoadingButton from '@mui/lab/LoadingButton';
 import TableBody from '@mui/material/TableBody';
 import TextField from '@mui/material/TextField';
 import InputAdornment from '@mui/material/InputAdornment';
@@ -17,7 +19,9 @@ import { paths } from 'src/routes/paths';
 import { useBoolean } from 'src/hooks/use-boolean';
 import { useDebounce } from 'src/hooks/use-debounce';
 
-import { useGetPlayers } from 'src/actions/player';
+import { getErrorMessage } from 'src/utils/get-error-message';
+
+import { useGetPlayer, useGetPlayers } from 'src/actions/player';
 import { playerService } from 'src/services';
 import { DashboardContent } from 'src/layouts/dashboard';
 
@@ -41,11 +45,14 @@ import { PlayerDetailsDialog } from '../player-details-dialog';
 
 // ----------------------------------------------------------------------
 
+/** Ẩn cột avatar / point / created at trên mobile (< sm) cho bảng gọn hơn. */
+const HIDE_ON_MOBILE = { display: { xs: 'none', sm: 'table-cell' } };
+
 const TABLE_HEAD = [
-  { id: 'avatar', label: '', width: 80 },
+  { id: 'avatar', label: '', width: 80, sx: HIDE_ON_MOBILE },
   { id: 'name', label: 'Name' },
-  { id: 'point', label: 'Point', width: 120, align: 'right' },
-  { id: 'createdAt', label: 'Created at', width: 200 },
+  { id: 'point', label: 'Point', width: 120, align: 'right', sx: HIDE_ON_MOBILE },
+  { id: 'createdAt', label: 'Created at', width: 200, sx: HIDE_ON_MOBILE },
   { id: '', label: '', width: 88 },
 ];
 
@@ -74,6 +81,39 @@ export function PlayerListView() {
   const confirm = useBoolean();
 
   const [selectedPlayer, setSelectedPlayer] = useState<IPlayerItem | null>(null);
+
+  // ---- Mở từ link `?edit=<id>` (vd nút Update ở dialog Player info của tournament) ----
+  // Đọc query bằng window (không dùng useSearchParams để khỏi cần Suspense boundary).
+  const [editId, setEditId] = useState<number | undefined>(undefined);
+  const editHandledRef = useRef(false);
+
+  useEffect(() => {
+    const id = Number(new URLSearchParams(window.location.search).get('edit'));
+    if (Number.isInteger(id) && id > 0) setEditId(id);
+  }, []);
+
+  const { player: editPlayer, playerError: editPlayerError } = useGetPlayer(editId);
+
+  useEffect(() => {
+    if (editId == null || editHandledRef.current) return;
+    if (!editPlayer && !editPlayerError) return; // đang tải
+
+    editHandledRef.current = true;
+
+    // Bỏ `edit` khỏi URL để tải lại trang không mở dialog lần nữa.
+    const url = new URL(window.location.href);
+    url.searchParams.delete('edit');
+    window.history.replaceState(null, '', url.pathname + url.search + url.hash);
+
+    if (editPlayer) {
+      // Lọc bảng đúng player này (ưu tiên số điện thoại vì không trùng) rồi mở dialog Edit.
+      setSearchQuery(editPlayer.phone || editPlayer.name || '');
+      setSelectedPlayer(editPlayer);
+      formDialog.onTrue();
+    } else {
+      toast.error('Player not found. It may have been deleted.');
+    }
+  }, [editId, editPlayer, editPlayerError, formDialog]);
 
   const handleOpenCreate = useCallback(() => {
     setSelectedPlayer(null);
@@ -104,6 +144,21 @@ export function PlayerListView() {
     [confirm]
   );
 
+  // ---- Xuất Excel ----
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = useCallback(async () => {
+    setExporting(true);
+    try {
+      await playerService.exportPlayers(debouncedSearch);
+    } catch (error) {
+      console.error(error);
+      toast.error(getErrorMessage(error, 'Export failed!'));
+    } finally {
+      setExporting(false);
+    }
+  }, [debouncedSearch]);
+
   const handleDelete = useCallback(async () => {
     if (!selectedPlayer) return;
 
@@ -129,13 +184,25 @@ export function PlayerListView() {
           heading="Player"
           links={[{ name: 'Dashboard', href: paths.dashboard.root }, { name: 'Player' }]}
           action={
-            <Button
-              variant="contained"
-              startIcon={<Iconify icon="mingcute:add-line" />}
-              onClick={handleOpenCreate}
-            >
-              New player
-            </Button>
+            <Stack direction="row" spacing={1.5} useFlexGap flexWrap="wrap">
+              {/* Xuất theo đúng từ khoá đang tìm trên màn hình; trống → xuất tất cả */}
+              <LoadingButton
+                variant="outlined"
+                color="inherit"
+                loading={exporting}
+                startIcon={<Iconify icon="solar:export-bold" />}
+                onClick={handleExport}
+              >
+                Export Excel
+              </LoadingButton>
+              <Button
+                variant="contained"
+                startIcon={<Iconify icon="mingcute:add-line" />}
+                onClick={handleOpenCreate}
+              >
+                New player
+              </Button>
+            </Stack>
           }
           sx={{ mb: { xs: 3, md: 5 } }}
         />
@@ -158,7 +225,7 @@ export function PlayerListView() {
           </Box>
 
           <Scrollbar>
-            <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 640 }}>
+            <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: { xs: 0, sm: 640 } }}>
               <TableHeadCustom headLabel={TABLE_HEAD} rowCount={players.length} />
 
               <TableBody>

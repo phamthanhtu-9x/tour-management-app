@@ -18,6 +18,10 @@ type Props = {
   right: ReactNode;
   /** Khi true: fill toàn bộ màn hình (bỏ ràng buộc 16:9). */
   fullscreen?: boolean;
+  /** Ảnh nền (URL). Không có → chỉ dùng màu nền. */
+  backgroundImage?: string | null;
+  /** Màu nền (màu trơn, hoặc màu tạm trong lúc ảnh nền đang tải). */
+  backgroundColor?: string;
 };
 
 /**
@@ -34,7 +38,7 @@ type Props = {
  *   └────────┴────────┴────────┘
  */
 export const TournamentClockLayout = forwardRef<HTMLDivElement, Props>(function TournamentClockLayout(
-  { topCenter, topRight, left, center, right, fullscreen },
+  { topCenter, topRight, left, center, right, fullscreen, backgroundImage, backgroundColor = '#BE3455' },
   ref: Ref<HTMLDivElement>,
 ) {
   const sideWidth = 25; // bottom row
@@ -49,7 +53,13 @@ export const TournamentClockLayout = forwardRef<HTMLDivElement, Props>(function 
         display: 'flex',
         flexDirection: 'column',
         gap: '2cqw',
-        bgcolor: '#BE3455',
+        bgcolor: backgroundColor,
+        ...(backgroundImage && {
+          backgroundImage: `url(${backgroundImage})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+        }),
         color: '#fff',
         position: 'relative',
         containerType: 'inline-size',

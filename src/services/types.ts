@@ -56,6 +56,11 @@ export type UpdateUserDto = {
   avatar?: string;
   firstName?: string;
   lastName?: string;
+  /**
+   * Slug (định danh dạng URL) – duy nhất toàn hệ thống.
+   * Chỉ a-z, 0-9, '-', dài 3–30, không bắt đầu/kết thúc bằng '-'. Chữ hoa được tự chuyển thành thường.
+   */
+  slug?: string;
 };
 
 /** Thông tin user trả về từ /users/me */
@@ -66,6 +71,8 @@ export type UserProfile = {
   avatar?: string | null;
   firstName?: string;
   lastName?: string;
+  /** Slug dùng cho trang tra cứu công khai `/players/[slug]`. */
+  slug?: string | null;
   role?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -201,6 +208,65 @@ export type UpdatePlayerDto = {
   point?: number;
   /** Số điện thoại: 8–15 chữ số, có thể có '+' ở đầu; không trùng player khác. null/"" = bỏ trống. */
   phone?: string | null;
+};
+
+// ---------------------------------- Dashboard ----------------------------------
+
+/** Level trong response `GET /dashboard/running-tours` (blind = null với BREAK). */
+export type RunningTourLevel = {
+  type: TourLevelType;
+  name: string | null;
+  smallBlind: number | null;
+  bigBlind: number | null;
+  ante: number | null;
+  /** Phút. */
+  duration: number;
+};
+
+/** Một tour đang chạy (gồm cả đang tạm dừng) – `GET /dashboard/running-tours`. */
+export type RunningTourItem = {
+  id: number;
+  title: string;
+  /** Vd 'RUNNING' | 'PAUSED'. */
+  status: string;
+  currentLevel: number;
+  totalLevels: number;
+  level: RunningTourLevel | null;
+  nextLevel: RunningTourLevel | null;
+  elapsedSeconds: number;
+  remainingSeconds: number;
+  /** Tổng số entry (người chơi) trong tour. */
+  entriesCount: number;
+  /** Số người chơi còn trong giải. */
+  remainingPlayers: number;
+  isRegOpen: boolean;
+};
+
+/** data của `GET /dashboard/summary`. */
+export type DashboardSummary = {
+  /** Tổng số tour đã tạo. */
+  totalTours: number;
+  /** Tổng số player. */
+  totalPlayers: number;
+};
+
+/** data của `GET /dashboard/running-tours`. */
+export type RunningToursData = {
+  items: RunningTourItem[];
+  total: number;
+};
+
+// ---------------------------------- Public ----------------------------------
+
+/** Một kết quả tra cứu công khai `GET /public/users/{slug}/players` (số điện thoại đã được che). */
+export type PublicPlayerItem = {
+  id?: number;
+  name?: string;
+  avatar?: string | null;
+  point?: number | null;
+  /** Đã che, vd "0912***678". */
+  phone?: string | null;
+  [key: string]: unknown;
 };
 
 // ---------------------------------- Upload ----------------------------------

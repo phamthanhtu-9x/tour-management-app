@@ -15,3 +15,7 @@ export * from './setup.service';
 export * from './player.service';
 
 export * from './upload.service';
+
+export * from './public.service';
+
+export * from './dashboard.service';

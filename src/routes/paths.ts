@@ -18,6 +18,8 @@ const ROOTS = {
 
 export const paths = {
   comingSoon: '/coming-soon',
+  /** Trang công khai tra cứu người chơi của một user (không cần đăng nhập). */
+  publicPlayers: (slug: string) => `/players/${encodeURIComponent(slug)}`,
   maintenance: '/maintenance',
   pricing: '/pricing',
   payment: '/payment',
@@ -102,6 +104,8 @@ export const paths = {
     fileManager: `${ROOTS.DASHBOARD}/file-manager`,
     permission: `${ROOTS.DASHBOARD}/permission`,
     player: `${ROOTS.DASHBOARD}/player`,
+    /** Trang Player, tự tìm và mở dialog Edit cho player `id`. */
+    playerEdit: (id: number) => `${ROOTS.DASHBOARD}/player?edit=${id}`,
     defaultBlind: `${ROOTS.DASHBOARD}/default-blind`,
     tournament: {
       root: `${ROOTS.DASHBOARD}/tournament`,

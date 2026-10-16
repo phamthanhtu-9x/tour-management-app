@@ -16,6 +16,8 @@ import { useGetPlayer } from 'src/actions/player';
 
 import { fDateTime } from 'src/utils/format-time';
 import { getFileUrl } from 'src/utils/file-url';
+import { fNumber } from 'src/utils/format-number';
+import { formatPhone } from 'src/utils/format-phone';
 
 import { Iconify } from 'src/components/iconify';
 
@@ -60,7 +62,8 @@ export function PlayerDetailsDialog({ open, onClose, playerId, fallback }: Props
             <Stack spacing={2} sx={{ width: 1 }}>
               <DetailRow label="ID" value={data ? `#${data.id}` : '—'} />
               <DetailRow label="Name" value={displayName} />
-              <DetailRow label="Phone" value={data?.phone || '—'} />
+              <DetailRow label="Phone" value={formatPhone(data?.phone) || '—'} />
+              <DetailRow label="Point" value={fNumber(data?.point ?? 0)} />
               <DetailRow label="Created at" value={fDateTime(data?.createdAt) ?? '—'} />
               <DetailRow label="Updated at" value={fDateTime(data?.updatedAt) ?? '—'} />
             </Stack>

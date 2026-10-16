@@ -50,9 +50,19 @@ export const navData = [
     subheader: 'Management',
     items: [
       { title: 'Dashboard', path: paths.dashboard.root, icon: ICONS.dashboard },
-      { title: 'Tournament', path: paths.dashboard.tournament.root, icon: ICONS.tournament },
-      { title: 'Player', path: paths.dashboard.player, icon: ICONS.user },
-      { title: 'Default blind', path: paths.dashboard.defaultBlind, icon: ICONS.label },
+      {
+        title: 'Tournament',
+        path: paths.dashboard.tournament.root,
+        icon: ICONS.tournament,
+        deepMatch: true,
+      },
+      { title: 'Player', path: paths.dashboard.player, icon: ICONS.user, deepMatch: true },
+      {
+        title: 'Default blind',
+        path: paths.dashboard.defaultBlind,
+        icon: ICONS.label,
+        deepMatch: true,
+      },
     ],
   },
 ];

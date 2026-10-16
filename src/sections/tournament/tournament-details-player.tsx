@@ -42,6 +42,9 @@ import { TournamentPlayerAddOnDialog } from './tournament-player-addon-dialog';
 
 // ----------------------------------------------------------------------
 
+/** Ẩn ô trên mobile (< sm): cột avatar và add-on. */
+const HIDE_ON_MOBILE = { display: { xs: 'none', sm: 'table-cell' } };
+
 /** Chu kỳ gọi lại REST control khi mất WebSocket (ms). */
 const CONTROL_POLL_MS = 5000;
 
@@ -357,12 +360,12 @@ export function TournamentDetailsPlayer({ id, tourState, wsConnected }: Props) {
           ) : entries.length === 0 ? (
             <EmptyContent title="No players" description="No players have been added to this tournament yet." />
           ) : (
-            <Table size="small" sx={{ minWidth: 600 }}>
+            <Table size="small" sx={{ minWidth: { xs: 0, sm: 600 } }}>
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ width: 56 }} />
+                  <TableCell sx={{ width: 56, ...HIDE_ON_MOBILE }} />
                   <TableCell>Player Name</TableCell>
-                  <TableCell align="right" sx={{ width: 120 }}>
+                  <TableCell align="right" sx={{ width: 120, ...HIDE_ON_MOBILE }}>
                     Add-on
                   </TableCell>
                   <TableCell align="right" sx={{ width: 120 }}>
@@ -377,7 +380,8 @@ export function TournamentDetailsPlayer({ id, tourState, wsConnected }: Props) {
               <TableBody>
                 {entries.map((entry, index) => (
                   <TableRow key={`${entry.name}-${index}`} hover sx={{opacity: entry.isEliminated ? 0.5: 1 }}>
-                    <TableCell sx={{ py: 0.75 }}>
+                    {/* Avatar – ẩn trên mobile */}
+                    <TableCell sx={{ py: 0.75, ...HIDE_ON_MOBILE }}>
                       <Avatar
                         alt={entry.name || '—'}
                         src={getFileUrl(entry.avatar)}
@@ -400,9 +404,10 @@ export function TournamentDetailsPlayer({ id, tourState, wsConnected }: Props) {
                       )}
                     </TableCell>
 
+                    {/* Add-on – ẩn trên mobile (xem trong dialog Add-on) */}
                     <TableCell
                       align="right"
-                      sx={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}
+                      sx={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', ...HIDE_ON_MOBILE }}
                     >
                       {sumAddOn(entry.addOn) > 0 ? fNumber(sumAddOn(entry.addOn)) : '—'}
                     </TableCell>

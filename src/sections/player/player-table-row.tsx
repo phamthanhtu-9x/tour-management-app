@@ -18,6 +18,11 @@ import { usePopover, CustomPopover } from 'src/components/custom-popover';
 
 // ----------------------------------------------------------------------
 
+/** Ẩn ô trên mobile (< sm) – khớp với TABLE_HEAD trong player-list-view. */
+const HIDE_ON_MOBILE = { display: { xs: 'none', sm: 'table-cell' } };
+
+// ----------------------------------------------------------------------
+
 type Props = {
   row: IPlayerItem;
   onView: (player: IPlayerItem) => void;
@@ -34,7 +39,8 @@ export function PlayerTableRow({ row, onView, onEdit, onDelete }: Props) {
   return (
     <>
       <TableRow>
-        <TableCell sx={{ width: 80, pr: 0 }}>
+        {/* Avatar – ẩn trên mobile (< sm) */}
+        <TableCell sx={{ width: 80, pr: 0, ...HIDE_ON_MOBILE }}>
           <Avatar alt={displayName} src={avatarUrl} sx={{ width: 40, height: 40 }}>
             {!avatarUrl ? (displayName[0] ?? '?').toUpperCase() : undefined}
           </Avatar>
@@ -46,11 +52,16 @@ export function PlayerTableRow({ row, onView, onEdit, onDelete }: Props) {
           </Stack>
         </TableCell>
 
-        <TableCell align="right" sx={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+        {/* Point – ẩn trên mobile (xem trong dialog Player details) */}
+        <TableCell
+          align="right"
+          sx={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', ...HIDE_ON_MOBILE }}
+        >
           {fNumber(row.point ?? 0)}
         </TableCell>
 
-        <TableCell sx={{ color: 'text.secondary', whiteSpace: 'nowrap' }}>
+        {/* Created at – ẩn trên mobile */}
+        <TableCell sx={{ color: 'text.secondary', whiteSpace: 'nowrap', ...HIDE_ON_MOBILE }}>
           {fDate(row.createdAt) ?? '—'}
         </TableCell>
 

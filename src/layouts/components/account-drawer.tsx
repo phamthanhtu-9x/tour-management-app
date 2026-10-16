@@ -29,6 +29,7 @@ import { useMockedUser } from 'src/auth/hooks';
 
 import { AccountButton } from './account-button';
 import { SignOutButton } from './sign-out-button';
+import { AccountSettingsDialog } from './account-settings-dialog';
 
 // ----------------------------------------------------------------------
 
@@ -51,6 +52,8 @@ export function AccountDrawer({ data = [], sx, ...other }: AccountDrawerProps) {
   const { user } = useMockedUser();
 
   const [open, setOpen] = useState(false);
+
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const handleOpenDrawer = useCallback(() => {
     setOpen(true);
@@ -155,6 +158,25 @@ export function AccountDrawer({ data = [], sx, ...other }: AccountDrawerProps) {
               borderBottom: `dashed 1px ${theme.vars.palette.divider}`,
             }}
           >
+            {/* Cài đặt tài khoản thật (slug cho trang tra cứu công khai) */}
+            <MenuItem
+              onClick={() => {
+                handleCloseDrawer();
+                setSettingsOpen(true);
+              }}
+              sx={{
+                py: 1,
+                color: 'text.secondary',
+                '& svg': { width: 24, height: 24 },
+                '&:hover': { color: 'text.primary' },
+              }}
+            >
+              <Iconify icon="solar:settings-bold-duotone" />
+              <Box component="span" sx={{ ml: 2 }}>
+                Account settings
+              </Box>
+            </MenuItem>
+
             {data.map((option) => {
               const rootLabel = pathname.includes('/dashboard') ? 'Home' : 'Dashboard';
 
@@ -192,6 +214,8 @@ export function AccountDrawer({ data = [], sx, ...other }: AccountDrawerProps) {
           <SignOutButton onClose={handleCloseDrawer} />
         </Box>
       </Drawer>
+
+      <AccountSettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </>
   );
 }

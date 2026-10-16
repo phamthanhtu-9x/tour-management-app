@@ -4,6 +4,7 @@ import type { ITourState, ITourLevelsPayload } from 'src/types/tour-socket';
 
 import { useMemo, useEffect, useCallback, useRef, useState } from 'react';
 
+import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 
 import { useBoolean } from 'src/hooks/use-boolean';
@@ -17,6 +18,8 @@ import { TournamentClockPrize } from './tournament-clock-prize';
 import type { CountdownTimerData } from './tournament-countdown-timer';
 import { TournamentCountdownTimer } from './tournament-countdown-timer';
 import { TournamentClockLayout } from './tournament-clock-layout';
+import { TournamentClockBgDialog } from './tournament-clock-bg-dialog';
+import { useClockBackground } from './tournament-clock-backgrounds';
 import { computeEntryStats } from './tournament-clock-utils';
 
 // ----------------------------------------------------------------------
@@ -61,6 +64,18 @@ export function TournamentDetailsClock({
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const fullscreen = useBoolean();
+
+  // ---- Nền Clock (lưu trên trình duyệt của máy này, theo từng tour) ----
+  const { background, changeBackground } = useClockBackground(tournament?.id);
+  const bgDialog = useBoolean();
+  /** Gắn dialog vào khung Clock khi đang fullscreen (dialog gắn vào body sẽ bị che). */
+  const [bgDialogContainer, setBgDialogContainer] = useState<HTMLElement | null>(null);
+
+  const handleOpenBgDialog = useCallback(() => {
+    const el = containerRef.current;
+    setBgDialogContainer(el && document.fullscreenElement === el ? el : null);
+    bgDialog.onTrue();
+  }, [bgDialog]);
 
   const [clockData, setClockData] = useState<CountdownTimerData | null>(null);
 
@@ -132,9 +147,12 @@ export function TournamentDetailsClock({
   }, [fullscreen]);
 
   return (
+    <>
     <TournamentClockLayout
       ref={containerRef}
       fullscreen={fullscreen.value}
+      backgroundImage={background.src}
+      backgroundColor={background.color}
       topCenter={
         <Typography
           sx={{
@@ -148,11 +166,19 @@ export function TournamentDetailsClock({
         </Typography>
       }
       topRight={
-        <Iconify
-          icon={fullscreen.value ? 'solar:quit-full-screen-bold' : 'solar:full-screen-bold'}
-          onClick={handleToggleFullscreen}
-          sx={{ cursor: 'pointer', fontSize: '3cqw' }}
-        />
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: '1.5cqw' }}>
+          {/* Đổi nền Clock */}
+          <Iconify
+            icon="solar:gallery-wide-bold"
+            onClick={handleOpenBgDialog}
+            sx={{ cursor: 'pointer', fontSize: '3cqw' }}
+          />
+          <Iconify
+            icon={fullscreen.value ? 'solar:quit-full-screen-bold' : 'solar:full-screen-bold'}
+            onClick={handleToggleFullscreen}
+            sx={{ cursor: 'pointer', fontSize: '3cqw' }}
+          />
+        </Box>
       }
       left={
         <TournamentClockInfo
@@ -174,5 +200,14 @@ export function TournamentDetailsClock({
       }
       right={<TournamentClockPrize gtdPrize={gtdPrize} />}
     />
+
+    <TournamentClockBgDialog
+      open={bgDialog.value}
+      onClose={bgDialog.onFalse}
+      value={background.id}
+      onChange={changeBackground}
+      container={bgDialogContainer}
+    />
+    </>
   );
 }

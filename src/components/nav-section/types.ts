@@ -46,6 +46,8 @@ export type NavItemBaseProps = {
   slotProps?: NavItemSlotProps;
   icon?: string | React.ReactNode;
   info?: string[] | React.ReactNode;
+  /** Active cả khi đang ở trang con (vd /tournament/12) dù item không có children */
+  deepMatch?: boolean;
 };
 
 export type NavItemProps = ButtonBaseProps & NavItemStateProps & NavItemBaseProps;

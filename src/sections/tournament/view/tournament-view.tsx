@@ -5,7 +5,6 @@ import type { ITournamentItem } from 'src/types/tournament';
 import { useState, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
-import Grid from '@mui/material/Grid';
 import Card from '@mui/material/Card';
 import Button from '@mui/material/Button';
 
@@ -112,13 +111,23 @@ export function TournamentView() {
             No tournament found.
           </Card>
         ) : (
-          <Grid container spacing={3}>
+          <Box
+            // Lưới CSS: không dùng margin âm như Grid v1 nên không bị lệch trái trên mobile.
+            sx={{
+              gap: 3,
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: '1fr',
+                sm: 'repeat(2, 1fr)',
+                md: 'repeat(3, 1fr)',
+                lg: 'repeat(4, 1fr)',
+              },
+            }}
+          >
             {tournaments.map((tournament) => (
-              <Grid key={tournament.id} xs={12} sm={6} md={4} lg={3} sx={{p: 1.5}}>
-                <TournamentCard tournament={tournament} onClick={handleClickCard} />
-              </Grid>
+              <TournamentCard key={tournament.id} tournament={tournament} onClick={handleClickCard} />
             ))}
-          </Grid>
+          </Box>
         )}
 
         {tournamentsTotal > 0 && (

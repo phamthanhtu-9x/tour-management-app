@@ -15,10 +15,13 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import CircularProgress from '@mui/material/CircularProgress';
 
+import { paths } from 'src/routes/paths';
+
 import { useGetPlayer } from 'src/actions/player';
 
 import { getFileUrl } from 'src/utils/file-url';
 import { fNumber } from 'src/utils/format-number';
+import { formatPhone } from 'src/utils/format-phone';
 
 import { Iconify } from 'src/components/iconify';
 
@@ -46,6 +49,19 @@ export function TournamentPlayerInfoDialog({ open, onClose, entry }: Props) {
   const displayName = player?.name || entry?.name || '—';
   const avatarUrl = getFileUrl(player?.avatar ?? entry?.avatar);
   const point = player ? fNumber(player.point ?? 0) : '—';
+
+  /** Chỉ sửa được khi entry có hồ sơ player còn tồn tại. */
+  const canUpdate = !isGuest && !!player && !playerError;
+
+  const handleUpdate = () => {
+    if (playerId == null) return;
+    // Đóng dialog trước khi mở tab mới.
+    onClose();
+    // KHÔNG dùng 'noopener': token đăng nhập nằm trong sessionStorage, chỉ được chép sang tab mới
+    // khi tab đó mở từ tab hiện tại. Cắt liên kết opener ngay sau khi mở cho an toàn.
+    const tab = window.open(paths.dashboard.playerEdit(playerId), '_blank');
+    if (tab) tab.opener = null;
+  };
 
   return (
     <Dialog fullWidth maxWidth="xs" open={open} onClose={onClose}>
@@ -81,7 +97,7 @@ export function TournamentPlayerInfoDialog({ open, onClose, entry }: Props) {
 
             <Stack spacing={2} sx={{ width: 1 }}>
               <InfoRow label="Name" value={displayName} />
-              <InfoRow label="Phone" value={player?.phone || '—'} />
+              <InfoRow label="Phone" value={formatPhone(player?.phone) || '—'} />
               <InfoRow label="Point" value={point} />
             </Stack>
           </Stack>
@@ -92,6 +108,17 @@ export function TournamentPlayerInfoDialog({ open, onClose, entry }: Props) {
         <Button variant="outlined" color="inherit" onClick={onClose}>
           Close
         </Button>
+
+        {/* Mở trang Player ở tab mới, tự tìm player này và mở dialog Edit */}
+        {canUpdate && (
+          <Button
+            variant="contained"
+            startIcon={<Iconify icon="solar:pen-bold" />}
+            onClick={handleUpdate}
+          >
+            Update
+          </Button>
+        )}
       </DialogActions>
     </Dialog>
   );
