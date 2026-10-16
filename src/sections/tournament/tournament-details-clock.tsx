@@ -21,6 +21,7 @@ import { TournamentClockLayout } from './tournament-clock-layout';
 import { TournamentClockBgDialog } from './tournament-clock-bg-dialog';
 import { useClockBackground } from './tournament-clock-backgrounds';
 import { computeEntryStats } from './tournament-clock-utils';
+import { useFullscreenControls } from './use-fullscreen-controls';
 
 // ----------------------------------------------------------------------
 
@@ -145,6 +146,14 @@ export function TournamentDetailsClock({
     containerRef.current?.requestFullscreen?.().catch(() => {});
   }, []);
 
+  const handleExitFullscreen = useCallback(() => {
+    document.exitFullscreen?.().catch(() => {});
+  }, []);
+
+  // Nút thoát chỉ hiện khi có tương tác (cho Smart TV / tablet không có phím Esc)
+  const exitButtonRef = useRef<SVGElement>(null);
+  const exitVisible = useFullscreenControls(fullscreen.value, containerRef, exitButtonRef);
+
   return (
     <>
     <TournamentClockLayout
@@ -165,8 +174,34 @@ export function TournamentDetailsClock({
         </Typography>
       }
       topRight={
-        // Ẩn các nút khi đang fullscreen để màn hình trình chiếu gọn
-        fullscreen.value ? null : (
+        // Fullscreen: ẩn nút nền / fullscreen, chỉ hiện nút thoát khi có tương tác
+        fullscreen.value ? (
+          <Iconify
+            ref={exitButtonRef}
+            icon="solar:quit-full-screen-bold"
+            onClick={handleExitFullscreen}
+            onKeyDown={(event) => {
+              // Remote TV: chọn bằng phím mũi tên rồi bấm OK/Enter
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                handleExitFullscreen();
+              }
+            }}
+            role="button"
+            aria-label="Thoát toàn màn hình"
+            tabIndex={exitVisible ? 0 : -1}
+            aria-hidden={!exitVisible}
+            sx={{
+              cursor: 'pointer',
+              fontSize: '3cqw',
+              borderRadius: 0.5,
+              '&:focus-visible': { outline: '3px solid #fff', outlineOffset: 4 },
+              opacity: exitVisible ? 1 : 0,
+              visibility: exitVisible ? 'visible' : 'hidden',
+              transition: 'opacity 0.3s ease, visibility 0.3s ease',
+            }}
+          />
+        ) : (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: '1.5cqw' }}>
             {/* Đổi nền Clock */}
             <Iconify
