@@ -13,6 +13,8 @@ import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 import CircularProgress from '@mui/material/CircularProgress';
 
+import { useResponsive } from 'src/hooks/use-responsive';
+
 import { tourService } from 'src/services';
 import { getErrorMessage } from 'src/utils/get-error-message';
 import { useGetTourLevels, useGetTourControl } from 'src/actions/tournament';
@@ -23,6 +25,7 @@ import { EmptyContent } from 'src/components/empty-content';
 
 import { TournamentControlPanel } from './tournament-control-panel';
 import { TournamentTourTimer } from './tournament-tour-timer';
+import { TournamentDetailsClock } from './tournament-details-clock';
 
 // ----------------------------------------------------------------------
 
@@ -55,6 +58,9 @@ export function TournamentDetailsControl({
   tourLevels,
   wsConnected,
 }: Props) {
+  // Dưới md tab Clock bị ẩn → hiện mini clock (cùng bố cục Clock) thay cho bảng Tour Timer.
+  const isMobile = useResponsive('down', 'md');
+
   const { levels: restLevels, levelsLoading } = useGetTourLevels(id);
   // Mất socket → tự gọi lại REST control định kỳ để không hiển thị trạng thái cũ.
   const { control: restControl, controlMutate } = useGetTourControl(id, {
@@ -178,15 +184,25 @@ export function TournamentDetailsControl({
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-      <TournamentTourTimer
-        tournament={tournament}
-        control={control}
-        levels={levels}
-        levelsLoading={!dataReady}
-        tourState={tourState}
-        wsConnected={wsConnected}
-        tourId={id}
-      />
+      {isMobile ? (
+        <TournamentDetailsClock
+          compact
+          tournament={tournament}
+          tourState={tourState}
+          tourLevels={tourLevels}
+          wsConnected={wsConnected}
+        />
+      ) : (
+        <TournamentTourTimer
+          tournament={tournament}
+          control={control}
+          levels={levels}
+          levelsLoading={!dataReady}
+          tourState={tourState}
+          wsConnected={wsConnected}
+          tourId={id}
+        />
+      )}
 
       <TournamentControlPanel
         id={id}

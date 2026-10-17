@@ -20,7 +20,7 @@ import { TournamentCountdownTimer } from './tournament-countdown-timer';
 import { TournamentClockLayout } from './tournament-clock-layout';
 import { TournamentClockBgDialog } from './tournament-clock-bg-dialog';
 import { useClockBackground } from './tournament-clock-backgrounds';
-import { computeEntryStats } from './tournament-clock-utils';
+import { clockSize, computeEntryStats } from './tournament-clock-utils';
 import { useFullscreenControls } from './use-fullscreen-controls';
 
 // ----------------------------------------------------------------------
@@ -39,6 +39,11 @@ type Props = {
   tourLevels?: ITourLevelsPayload | null;
   /** WebSocket đã kết nối hay chưa. */
   wsConnected?: boolean;
+  /**
+   * Mini clock (tab Control trên mobile): cùng bố cục Clock nhưng chữ có cỡ tối thiểu,
+   * không có nút đổi nền / fullscreen (nền dùng chung với tab Clock trên máy này).
+   */
+  compact?: boolean;
 };
 
 // ----------------------------------------------------------------------
@@ -62,6 +67,7 @@ export function TournamentDetailsClock({
   tourState,
   tourLevels,
   wsConnected,
+  compact,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const fullscreen = useBoolean();
@@ -159,12 +165,13 @@ export function TournamentDetailsClock({
     <TournamentClockLayout
       ref={containerRef}
       fullscreen={fullscreen.value}
+      compact={compact}
       backgroundImage={background.src}
       backgroundColor={background.color}
       topCenter={
         <Typography
           sx={{
-            fontSize: '2.5cqw',
+            fontSize: clockSize(2.5, 13, compact),
             fontWeight: 700,
             textTransform: 'uppercase',
             lineHeight: 1.1,
@@ -174,7 +181,20 @@ export function TournamentDetailsClock({
         </Typography>
       }
       topRight={
-        // Fullscreen: ẩn nút nền / fullscreen, chỉ hiện nút thoát khi có tương tác
+        compact ? (
+          // Mini clock: chỉ hiện chấm trạng thái kết nối realtime
+          <Box
+            component="span"
+            title={wsConnected ? 'Realtime connected' : 'Realtime disconnected'}
+            aria-label={wsConnected ? 'Realtime connected' : 'Realtime disconnected'}
+            sx={{
+              width: 10,
+              height: 10,
+              borderRadius: '50%',
+              bgcolor: wsConnected ? '#22C55E' : '#FF5630',
+            }}
+          />
+        ) : // Fullscreen: ẩn nút nền / fullscreen, chỉ hiện nút thoát khi có tương tác
         fullscreen.value ? (
           <Iconify
             ref={exitButtonRef}
@@ -222,6 +242,7 @@ export function TournamentDetailsClock({
           stats={entryStats}
           nextBreakIn={clockData?.nextBreakIn}
           regEndIn={clockData?.regEndIn}
+          compact={compact}
         />
       }
       center={
@@ -233,17 +254,20 @@ export function TournamentDetailsClock({
           onDataChange={setClockData}
           regEndIdx={control?.regEnd !== undefined ? control.regEnd : tournament?.regEnd}
           isRegOpen={control?.isRegOpen}
+          compact={compact}
         />
       }
-      right={<TournamentClockPrize gtdPrize={gtdPrize} />}
+      right={<TournamentClockPrize gtdPrize={gtdPrize} compact={compact} />}
     />
 
+    {!compact && (
     <TournamentClockBgDialog
       open={bgDialog.value}
       onClose={bgDialog.onFalse}
       value={background.id}
       onChange={changeBackground}
     />
+    )}
     </>
   );
 }

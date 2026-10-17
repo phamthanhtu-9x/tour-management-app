@@ -252,3 +252,13 @@ export function mapSocketLevels(payload: ITourLevelsPayload): TourLevelItemDto[]
     ante: l.ante ?? undefined,
   }));
 }
+
+// ----------------------------------------------------------------------
+
+/**
+ * Cỡ chữ Clock theo bề ngang khung (cqw). Ở chế độ `compact` (mini clock trên mobile)
+ * có thêm cỡ tối thiểu để chữ không quá nhỏ trên màn hình hẹp.
+ */
+export function clockSize(cqw: number, minPx: number, compact?: boolean): string {
+  return compact ? `max(${cqw}cqw, ${minPx}px)` : `${cqw}cqw`;
+}

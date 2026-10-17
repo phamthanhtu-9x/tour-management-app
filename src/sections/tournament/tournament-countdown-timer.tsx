@@ -10,6 +10,7 @@ import Typography from '@mui/material/Typography';
 import { tourService } from 'src/services';
 
 import {
+  clockSize,
   formatBlinds,
   findNextBlindLevel,
   findNextLevel,
@@ -64,6 +65,8 @@ type Props = {
   regEndIdx?: number | null;
   /** Đăng ký còn mở hay không (server tính). false → hiển thị "Closed". */
   isRegOpen?: boolean;
+  /** Mini clock (mobile): áp cỡ chữ tối thiểu, thu nhỏ số đếm ngược cho vừa cột giữa. */
+  compact?: boolean;
 };
 
 // ----------------------------------------------------------------------
@@ -105,6 +108,7 @@ export function TournamentCountdownTimer({
   onDataChange,
   regEndIdx,
   isRegOpen,
+  compact,
 }: Props) {
   // -------------------------------------------------------
   // Client-side ticking
@@ -281,7 +285,7 @@ export function TournamentCountdownTimer({
           justifyContent: 'center',
         }}
       >
-        <Typography sx={{ fontSize: '3cqw', opacity: 0.7 }}>Loading…</Typography>
+        <Typography sx={{ fontSize: clockSize(3, 12, compact), opacity: 0.7 }}>Loading…</Typography>
       </Box>
     );
   }
@@ -304,7 +308,7 @@ export function TournamentCountdownTimer({
         <Typography
           sx={{
             textTransform: 'uppercase',
-            fontSize: '5cqw',
+            fontSize: clockSize(5, 16, compact),
             fontWeight: 700,
             lineHeight: 1.1,
           }}
@@ -317,9 +321,10 @@ export function TournamentCountdownTimer({
           sx={{
             fontWeight: 700,
             lineHeight: 0.9,
-            fontSize: '20cqw',
+            // compact: cột giữa hẹp hơn tỉ lệ 16:9 → thu số lại để không tràn sang 2 cột bên
+            fontSize: compact ? '16cqw' : '20cqw',
             mb: '1cqw',
-            width: '57cqw',
+            width: compact ? '45cqw' : '57cqw',
             fontVariantNumeric: 'tabular-nums',
           }}
         >
@@ -332,14 +337,14 @@ export function TournamentCountdownTimer({
             <Typography
               sx={{
                 textTransform: 'uppercase',
-                fontSize: '4cqw',
+                fontSize: clockSize(4, 13, compact),
                 fontWeight: 700,
                 lineHeight: 1.2,
               }}
             >
               Blinds &amp; Ante
             </Typography>
-            <Typography sx={{ fontWeight: 700, fontSize: '4cqw', lineHeight: 1.2 }}>
+            <Typography sx={{ fontWeight: 700, fontSize: clockSize(4, 13, compact), lineHeight: 1.2 }}>
               {clockData.blinds}
             </Typography>
           </Box>
@@ -352,7 +357,7 @@ export function TournamentCountdownTimer({
               sx={{
                 textTransform: 'uppercase',
                 opacity: 0.85,
-                fontSize: '2.5cqw',
+                fontSize: clockSize(2.5, 11, compact),
                 fontWeight: 700,
                 lineHeight: 1.2,
               }}
@@ -364,7 +369,7 @@ export function TournamentCountdownTimer({
                 sx={{
                   fontWeight: 700,
                   opacity: 0.85,
-                  fontSize: '2.5cqw',
+                  fontSize: clockSize(2.5, 11, compact),
                   lineHeight: 1.2,
                 }}
               >

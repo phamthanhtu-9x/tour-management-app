@@ -3,7 +3,7 @@ import type { TourEntryStats } from './tournament-clock-utils';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 
-import { formatChips } from './tournament-clock-utils';
+import { clockSize, formatChips } from './tournament-clock-utils';
 
 // ----------------------------------------------------------------------
 
@@ -12,19 +12,24 @@ type Props = {
   stats?: TourEntryStats | null;
   nextBreakIn?: string | null;
   regEndIn?: string | null;
+  /** Mini clock (mobile): áp cỡ chữ tối thiểu. */
+  compact?: boolean;
 };
 
-export function TournamentClockInfo({ stats, nextBreakIn, regEndIn }: Props) {
+export function TournamentClockInfo({ stats, nextBreakIn, regEndIn, compact }: Props) {
+  const fontSize = clockSize(2, 10, compact);
+
   const entriesValue = stats ? `${stats.activeEntries} / ${stats.totalEntries}` : '—';
 
   const rows = [
     { label: 'Entries', value: entriesValue },
     {
-      label: 'Re-buy / Buy-in',
+      // Mini clock dùng nhãn viết tắt cho vừa cột hẹp
+      label: compact ? 'RB / BI' : 'Re-buy / Buy-in',
       value: `${stats?.totalReBuys ?? 0} / ${stats?.buyin ?? 0}`,
     },
     { label: 'Chips in play', value: formatChips(stats?.chipsInPlay) },
-    { label: 'Average Stack', value: formatChips(stats?.avgStack) },
+    { label: compact ? 'Avg Stack' : 'Average Stack', value: formatChips(stats?.avgStack) },
     { label: 'Next break', value: nextBreakIn || '—' },
     { label: 'Reg closed', value: regEndIn || '—' },
   ];
@@ -43,14 +48,17 @@ export function TournamentClockInfo({ stats, nextBreakIn, regEndIn }: Props) {
       {rows.map((row) => (
         <Box key={row.label}>
           <Typography
-            sx={{ fontSize: '2cqw', fontWeight: 700, lineHeight: 1.2, textTransform: 'uppercase' }}
+            sx={{ fontSize, fontWeight: 700, lineHeight: 1.2, textTransform: 'uppercase' }}
           >
             {row.label}
           </Typography>
           <Typography
-            sx={{ fontSize: '2cqw', fontWeight: 700, lineHeight: 1.2,
+            sx={{
+              fontSize,
+              fontWeight: 700,
+              lineHeight: 1.2,
               fontVariantNumeric: 'tabular-nums',
-             }}
+            }}
           >
             {row.value}
           </Typography>

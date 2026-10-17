@@ -22,6 +22,8 @@ type Props = {
   backgroundImage?: string | null;
   /** Màu nền (màu trơn, hoặc màu tạm trong lúc ảnh nền đang tải). */
   backgroundColor?: string;
+  /** Mini clock (mobile): nền kiểu Card, bỏ tỉ lệ 16:9 để khung cao theo nội dung, thu gọn padding. */
+  compact?: boolean;
 };
 
 /**
@@ -38,7 +40,17 @@ type Props = {
  *   └────────┴────────┴────────┘
  */
 export const TournamentClockLayout = forwardRef<HTMLDivElement, Props>(function TournamentClockLayout(
-  { topCenter, topRight, left, center, right, fullscreen, backgroundImage, backgroundColor = '#BE3455' },
+  {
+    topCenter,
+    topRight,
+    left,
+    center,
+    right,
+    fullscreen,
+    backgroundImage,
+    backgroundColor = '#BE3455',
+    compact,
+  },
   ref: Ref<HTMLDivElement>,
 ) {
   const sideWidth = 25; // bottom row
@@ -54,7 +66,7 @@ export const TournamentClockLayout = forwardRef<HTMLDivElement, Props>(function 
         flexDirection: 'column',
         gap: '2cqw',
         bgcolor: backgroundColor,
-        ...(backgroundImage && {
+        ...(backgroundImage && !compact && {
           backgroundImage: `url(${backgroundImage})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
@@ -63,7 +75,16 @@ export const TournamentClockLayout = forwardRef<HTMLDivElement, Props>(function 
         color: '#fff',
         position: 'relative',
         containerType: 'inline-size',
-        ...(!fullscreen && { aspectRatio: '16 / 9' }),
+        ...(!fullscreen && !compact && { aspectRatio: '16 / 9' }),
+        // Mini clock: nền giống thẻ Card (MuiPaper) thay cho nền ảnh của Clock
+        ...(compact && {
+          bgcolor: 'background.paper',
+          color: 'text.primary',
+          boxShadow: (theme) => theme.customShadows.card,
+          borderRadius: 2,
+          overflow: 'hidden',
+          pb: 2,
+        }),
       }}
     >
       {/* ----- Top row: 3 cols ----- */}
@@ -72,8 +93,8 @@ export const TournamentClockLayout = forwardRef<HTMLDivElement, Props>(function 
           width: '100%',
           display: 'flex',
           alignItems: 'center',
-          px: 3,
-          paddingTop: '1cqw',
+          px: compact ? 1.5 : 3,
+          paddingTop: compact ? 1.5 : '1cqw',
         }}
       >
         <Box sx={{ width: `${topSideWidth}%` }} />
@@ -84,7 +105,7 @@ export const TournamentClockLayout = forwardRef<HTMLDivElement, Props>(function 
       </Box>
 
       {/* ----- Bottom row: 3 cols ----- */}
-      <Box sx={{ flex: 1, display: 'flex', gap: 2 }}>
+      <Box sx={{ flex: 1, display: 'flex', gap: compact ? 1 : 2, px: compact ? 1 : 0 }}>
         <Box sx={{ width: `${sideWidth}%` }}>{left}</Box>
         <Box sx={{ flex: 1 }}>{center}</Box>
         <Box sx={{ width: `${sideWidth}%` }}>{right}</Box>
