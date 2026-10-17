@@ -13,6 +13,7 @@ import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 import CircularProgress from '@mui/material/CircularProgress';
 
+import { useBoolean } from 'src/hooks/use-boolean';
 import { useResponsive } from 'src/hooks/use-responsive';
 
 import { tourService } from 'src/services';
@@ -25,6 +26,7 @@ import { EmptyContent } from 'src/components/empty-content';
 
 import { TournamentControlPanel } from './tournament-control-panel';
 import { TournamentTourTimer } from './tournament-tour-timer';
+import { TournamentGtdDialog } from './tournament-gtd-dialog';
 import { TournamentDetailsClock } from './tournament-details-clock';
 
 // ----------------------------------------------------------------------
@@ -111,14 +113,9 @@ export function TournamentDetailsControl({
   const dataReady = wsConnected ? !!tourState : !levelsLoading;
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [gtd, setGtd] = useState('');
-  const [savingGtd, setSavingGtd] = useState(false);
+  const gtdDialog = useBoolean();
 
   const controlGtd: string = (control as any)?.gtd ?? '';
-
-  useEffect(() => {
-    setGtd(controlGtd);
-  }, [controlGtd]);
 
   const levelOptions = useMemo(
     () =>
@@ -156,23 +153,6 @@ export function TournamentDetailsControl({
     },
     [id, tournamentMutate, wsConnected, controlMutate]
   );
-
-  const handleChangeGtd = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    setGtd(event.target.value);
-  }, []);
-
-  const handleSaveGtd = useCallback(async () => {
-    setSavingGtd(true);
-    try {
-      await tourService.updateGtd(id, { gtd });
-      toast.success('GTD updated!');
-    } catch (error) {
-      console.error(error);
-      toast.error('GTD update failed!');
-    } finally {
-      setSavingGtd(false);
-    }
-  }, [id, gtd]);
 
   if (tournamentLoading) {
     return (
@@ -246,28 +226,31 @@ export function TournamentDetailsControl({
               </TextField>
             )}
 
+            {/* GTD: chỉ hiển thị, chỉnh sửa trong dialog */}
             <TextField
               fullWidth
               label="GTD (prize structure)"
-              placeholder="10/5/3/3/1"
-              value={gtd}
-              onChange={handleChangeGtd}
-              helperText="Định dạng: {số}/{số}/... (vd: 10/5/3/3/1)"
-              sx={{ flex: 1 }}
+              value={controlGtd || 'Not set'}
+              onClick={gtdDialog.onTrue}
+              sx={{
+                flex: 1,
+                '& .MuiInputBase-root, & input': { cursor: 'pointer' },
+                ...(!controlGtd && { '& input': { color: 'text.disabled', cursor: 'pointer' } }),
+              }}
               InputProps={{
+                readOnly: true,
                 endAdornment: (
                   <InputAdornment position="end">
                     <IconButton
                       color="primary"
-                      onClick={handleSaveGtd}
-                      disabled={savingGtd || gtd === controlGtd}
                       edge="end"
+                      aria-label="Edit GTD"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        gtdDialog.onTrue();
+                      }}
                     >
-                      {savingGtd ? (
-                        <CircularProgress size={20} />
-                      ) : (
-                        <Iconify icon="solar:diskette-bold" />
-                      )}
+                      <Iconify icon="solar:pen-bold" />
                     </IconButton>
                   </InputAdornment>
                 ),
@@ -276,6 +259,16 @@ export function TournamentDetailsControl({
           </Stack>
         )}
       </Card>
+
+      <TournamentGtdDialog
+        open={gtdDialog.value}
+        onClose={gtdDialog.onFalse}
+        tourId={id}
+        currentGtd={controlGtd}
+        onSuccess={() => {
+          if (!wsConnected) controlMutate();
+        }}
+      />
     </Box>
   );
 }
